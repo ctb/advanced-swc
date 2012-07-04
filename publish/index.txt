@@ -31,7 +31,7 @@ Software"; Day 2 ran through the end of "Online Resources for Python";
 and Day 3 finished it off.
 
 Example code (mostly from the C extension sections) is available `here
-<code.tar.gz>`__; see the `README <code/README.txt>`__ for more information.
+<https://github.com/ctb/advanced-swc/raw/master/publish/code.tar.gz>`__; see the `README <https://raw.github.com/ctb/advanced-swc/master/publish/code/README.txt>`__ for more information.
 
 Contents:
 
