@@ -7,6 +7,7 @@ Contents:
    :maxdepth: 2
 
    idiomatic-python-2
-   increasing-perforamnce
+   increasing-performance
    tools
+   pyparsing-presentation
    online-resources

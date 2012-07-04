@@ -9,3 +9,4 @@ Contents:
    idiomatic-python
    structuring-python
    testing-python
+   nose-intro
