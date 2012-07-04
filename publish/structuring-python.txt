@@ -1,0 +1,759 @@
+Structuring, Testing, and Maintaining Python Programs
+=====================================================
+
+Python is really the first programming language in which I started
+re-using code significantly.  In part, this is because it is rather
+easy to compartmentalize functions and classes in Python.  Something
+else that Python makes relatively easy is building testing into your
+program structure.  Combined, reusability and testing can have a huge
+effect on maintenance.
+
+Programming for reusability
+---------------------------
+
+It's difficult to come up with any hard and fast rules for programming
+for reusability, but my main rules of thumb are: don't plan too much,
+and don't hesitate to refactor your code. [#refactor]_.
+
+In any project, you will write code that
+you want to re-use in a slightly different context.  It will often be
+easiest to cut and paste this code rather than to copy the module it's
+in -- but try to resist this temptation a bit, and see if you can make
+the code work for both uses, and then use it in both places.
+
+.. [#refactor] If you haven't read Martin Fowler's **Refactoring**, do
+   so -- it describes how to incrementally make your code better.
+   I'll discuss it some more in the context of testing, below.
+
+Modules and scripts
+-------------------
+
+The organization of your code source files can help or hurt you with
+code re-use.
+
+Most people start their Python programming out by putting everything in
+a script: ::
+
+ calc-squares.py:
+   #! /usr/bin/env python
+   for i in range(0, 10):
+      print i**2
+
+This is great for experimenting, but you can't re-use this code at all!
+
+(UNIX folk: note the use of ``#! /usr/bin/env python``, which tells UNIX
+to execute this script using whatever ``python`` program is first in your
+path.  This is more portable than putting ``#! /usr/local/bin/python`` or
+``#! /usr/bin/python`` in your code, because not everyone puts python in
+the same place.)
+
+Back to reuse.  What about this? ::
+
+ calc-squares.py:
+   #! /usr/bin/env python
+   def squares(start, stop):
+      for i in range(0, 10):
+         print i**2
+
+   squares(0, 10)
+
+I think that's a bit better for re-use -- you've made ``squares``
+flexible and re-usable -- but there are two mechanistic problems.
+First, it's named ``calc-squares.py``, which means it can't readily be
+imported.  (Import filenames have to be valid Python names, of
+course!)  And, second, were it importable, it would execute ``squares(0, 10)``
+on import - hardly what you want!
+
+To fix the first, just change the name: ::
+
+  calc_squares.py:
+    #! /usr/bin/env python
+    def squares(start, stop):
+      for i in range(0, 10):
+          print i**2
+    
+    squares(0, 10)
+
+Good, but now if you do ``import calc_squares``, the ``squares(0, 10)`` code
+will still get run!  There are a couple of ways to deal with this.  The first
+is to look at the module name: if it's ``calc_squares``, then the module is
+being imported, while if it's ``__main__``, then the module is being run as
+a script: ::
+
+  calc_squares.py:
+    #! /usr/bin/env python
+    def squares(start, stop):
+      for i in range(0, 10):
+         print i**2
+
+    if __name__ == '__main__':
+      squares(0, 10)
+
+Now, if you run ``calc_squares.py`` directly, it will run ``squares(0, 10)``;
+if you import it, it will simply define the ``squares`` function and leave
+it at that.  This is probably the most standard way of doing it.
+
+I actually prefer a different technique, because of my fondness for testing.
+(I also think this technique lends itself to reusability, though.)  I
+would actually write two files: ::
+
+  squares.py:
+    def squares(start, stop):
+      for i in range(0, 10):
+         print i**2
+
+    if __name__ == `__main__`:
+      # ...run automated tests...
+
+  calc-squares:
+    #! /usr/bin/env python
+    import squares
+    squares.squares(0, 10)
+
+A few notes -- first, this is eminently reusable code, because
+``squares.py`` is completely separate from the context-specific call.
+Second, you can look at the directory listing in an instant and see
+that ``squares.py`` is probably a library, while ``calc-squares`` must
+be a script, because the latter cannot be imported.  Third, you can add
+automated tests to ``squares.py`` (as described below), and run them
+simply by running ``python squares.py``.  Fourth, you can add script-specific
+code such as command-line argument handling to the script, and keep it
+separate from your data handling and algorithm code.
+
+Packages
+--------
+
+A Python package is a directory full of Python modules containing a
+special file, ``__init__.py``, that tells Python that the directory is
+a package.  Packages are for collections of library code that are too
+big to fit into single files, or that have some logical substructure
+(e.g. a central library along with various utility functions that all
+interact with the central library).
+
+For an example, look at this directory tree: ::
+
+   package/
+     __init__.py	-- contains functions a(), b()
+     other.py		-- contains function c()
+     subdir/
+	__init__.py	-- contains function d()
+
+From this directory tree, you would be able to access the functions like
+so: ::
+
+   import package
+   package.a()
+   package.b()
+
+   import package.other
+   package.other.c()
+
+   import package.subdir
+   package.subdir.d()
+
+Note that ``__init__.py`` is just another Python file; there's nothing
+special about it except for the name, which tells Python that the
+directory is a package directory.  ``__init__.py`` is the only code
+executed on import, so if you want names and symbols from other
+modules to be accessible at the package top level, you have to import
+or create them in ``__init__.py``.
+
+There are two ways to use packages: you can treat them as a convenient
+code organization technique, and make most of the functions or classes
+available at the top level; or you can use them as a library
+hierarchy.  In the first case you would make all of the names above
+available at the top level: ::
+
+ package/__init__.py:
+   from other import c
+   from subdir import d
+   ...
+
+which would let you do this: ::
+
+   import package
+   package.a()
+   package.b()
+   package.c()
+   package.d()
+
+That is, the names of the functions would all be immediately available at
+the top level of the package, but the implementations would be spread out
+among the different files and directories.  I personally prefer this because
+I don't have to remember as much ;).  The down side is that everything gets
+imported all at once, which (especially for large bodies of code) may be
+slow and memory intensive if you only need a few of the functions.
+
+Alternatively, if you wanted to keep the library hierarchy, just leave out
+the top-level imports.  The advantage here is that you only import the
+names you need; however, you need to remember more.
+
+Some people are fond of package trees, but I've found that hierarchies
+of packages more than two deep are annoying to develop on: you spend a
+lot of your time browsing around between directories, trying to figure
+out *exactly* which function you need to use and what it's named.
+(Your mileage may vary.)  I think this is one of the main reasons why
+the Python stdlib looks so big, because most of the packages are
+top-level.
+
+One final note: you can restrict what objects are exported from a module
+or package by listing the names in the ``__all__`` variable.  So, if
+you had a module ``some_mod.py`` that contained this code: ::
+
+  some_mod.py:
+    __all__ = ['fn1']
+    
+    def fn1(...):
+	...
+
+    def fn2(...):
+	...
+
+then only 'some_mod.fn1()' would be available on import.  This is a
+good way to cut down on "namespace pollution" -- the presence of
+"private" objects and code in imported modules -- which in turn makes
+introspection useful.
+
+A short digression: naming and formatting
+-----------------------------------------
+
+You may have noticed that a lot of Python code looks pretty similar --
+this is because there's an "official" style guide for Python, called
+`PEP 8 <http://www.python.org/dev/peps/pep-0008/>`__.  It's worth a quick
+skim, and an occasional deeper read for some sections.
+
+Here are a few tips that will make your code look internally
+consistent, if you don't already have a coding style of your own:
+
+ - use four spaces (NOT a tab) for each indentation level;
+
+ - use lowercase, _-separated names for module and function names, e.g.
+       ``my_module``;
+
+ - use CapsWord style to name classes, e.g. ``MySpecialClass``;
+
+ - use '_'-prefixed names to indicate a "private" variable that should
+       not be used outside this module, , e.g. ``_some_private_variable``;
+
+Another short digression: docstrings
+------------------------------------
+
+Docstrings are strings of text attached to Python objects like
+modules, classes, and methods/functions.  They can be used to provide
+human-readable help when building a library of code.  "Good" docstring
+coding is used to provide additional information about functionality
+beyond what can be discovered automatically by introspection; compare ::
+
+  def is_prime(x):
+      """
+      is_prime(x) -> true/false.  Determines whether or not x is prime,
+      and return true or false.
+      """
+
+versus ::
+
+  def is_prime(x):
+      """
+      Returns true if x is prime, false otherwise.
+
+      is_prime() uses the Bernoulli-Schmidt formalism for figuring out
+      if x is prime.  Because the BS form is stochastic and hysteretic,
+      multiple calls to this function will be increasingly accurate.
+      """
+
+The top example is good (documentation is good!), but the bottom
+example is better, for a few reasons.  First, it is not redundant:
+the arguments to ``is_prime`` are discoverable by introspection and
+don't need to be specified.  Second, it's summarizable: the first line
+stands on its own, and people who are interested in more detail can read
+on.  This enables certain document extraction tools to do a better job.
+
+For more on docstrings, see `PEP 257
+<http://www.python.org/dev/peps/pep-0257/>`__.
+
+Sharing data between code
+-------------------------
+
+There are three levels at which data can be shared between Python
+code: module globals, class attributes, and object attributes.  You
+can also sneak data into functions by dynamically defining a function
+within another scope, and/or binding them to keyword arguments.
+
+Scoping: a digression
+---------------------
+
+Just to make sure we're clear on scoping, here are a few simple
+examples.  In this first example, f() gets x from the module
+namespace.
+
+>>> x = 1
+>>> def f():
+...   print x
+>>> f()
+1
+
+In this second example, f() overrides x, but only within the namespace
+in f().
+
+>>> x = 1
+>>> def f():
+...   x = 2 
+...   print x
+>>> f()
+2
+>>> print x
+1
+
+In this third example, g() overrides x, and h() obtains x from within g(),
+because h() was *defined* within g():
+
+>>> x = 1
+
+>>> def outer():
+...    x = 2
+...
+...    def inner():
+...       print x
+...
+...    return inner
+
+>>> inner = outer()
+>>> inner()
+2
+
+In all cases, without a ``global`` declaration, assignments will
+simply create a new local variable of that name, and not modify the
+value in any other scope:
+
+>>> x = 1
+>>> def outer():
+...    x = 2
+...
+...    def inner():
+...       x = 3
+...
+...    inner()
+...
+...    print x
+>>> outer()
+2
+
+However, *with* a ``global`` definition, the outermost scope is used:
+
+>>> x = 1
+>>> def outer():
+...    x = 2
+...
+...    def inner():
+...	  global x
+...       x = 3
+...
+...    inner()
+...
+...    print x
+>>> outer()
+2
+>>> print x
+3
+
+I generally suggest avoiding scope trickery as much as possible, in
+the interests of readability.  There are two common patterns that I
+use when I *have* to deal with scope issues.
+
+First, module globals are sometimes necessary.  For one such case,
+imagine that you have a centralized resource that you must initialize
+precisely once, and you have a number of functions that depend on that
+resource.  Then you can use a module global to keep track of the
+initialization state.  Here's a (contrived!) example for a random
+number generator that initializes the random number seed precisely
+once: ::
+
+  _initialized = False
+  def init():
+    global _initialized
+    if not _initialized:
+        import time
+	random.seed(time.time())
+	_initialized = True
+
+  def randint(start, stop):
+    init()
+    ...
+
+This code ensures that the random number seed is initialized only once by
+making use of the ``_initialized`` module global.  A few points, however:
+
+ - this code is not threadsafe.  If it was really important that the
+   resource be initialized precisely once, you'd need to use thread locking.
+   Otherwise two functions could call ``randint()`` at the same time and
+   both could get past the ``if`` statement.
+
+ - the module global code is very isolated and its use is very clear.
+   Generally I recommend having only one or two functions that access the
+   module global, so that if I need to change its use I don't have to
+   understand a lot of code.
+
+The other "scope trickery" that I sometimes engage in is passing data into
+dynamically generated functions.  Consider a situation where you have to
+use a callback API: that is, someone has given you a library function that
+will call your own code in certain situations. For our example, let's look at
+the ``re.sub`` function that comes with Python, which takes a callback
+function to apply to each match.
+
+Here's a callback function that uppercases words:
+
+>>> def replace(m):
+...   match = m.group()
+...   print 'replace is processing:', match
+...   return match.upper()
+>>> s = "some string"
+
+>>> import re
+>>> print re.sub('\\S+', replace, s)
+replace is processing: some
+replace is processing: string
+SOME STRING
+
+What's happening here is that the ``replace`` function is called each
+time the regular expression '\\S+' (a set of non-whitespace characters)
+is matched.  The matching substring is replaced by whatever the
+function returns.
+
+Now let's imagine a situation where we want to pass information into
+``replace``; for example, we want to process only words that match
+in a dictionary.  (I *told* you it was contrived!)  We could simply rely
+on scoping:
+
+>>> d = { 'some' : True, 'string' : False }
+>>> def replace(m):
+...   match = m.group()
+...   if match in d and d[match]:
+...      return match.upper()
+...   return match
+
+>>> print re.sub('\\S+', replace, s)
+SOME string
+
+but I would argue against it on the grounds of readability: passing
+information implicitly between scopes is bad.  (At this point advanced
+Pythoneers might sneer at me, because scoping is natural to Python,
+but nuts to them: readability and transparency is also very
+important.)  You *could* also do it this way:
+
+>>> d = { 'some' : True, 'string' : False }
+>>> def replace(m, replace_dict=d):		# <-- explicit declaration
+...   match = m.group()
+...   if match in replace_dict and replace_dict[match]:
+...      return match.upper()
+...   return match
+
+>>> print re.sub('\\S+', replace, s)
+SOME string
+
+The idea is to use keyword arguments on the function to pass in required
+information, thus making the information passing explicit.
+
+Back to sharing data
+--------------------
+
+I started discussing scope in the context of sharing data, but we got
+a bit sidetracked from data sharing.  Let's get back to that now.
+
+The key to thinking about data sharing in the context of code reuse
+is to think about how that data will be used.
+
+If you use a module global, then any code in that module has access to
+that global.
+
+If you use a class attribute, then any object of that class type
+(including inherited classes) shares that data.
+
+And, if you use an object attribute, then every object of that class
+type will have its own version of that data.
+
+How do you choose which one to use?  My ground rule is to minimize the
+use of more widely shared data.  If it's possible to use an object
+variable, do so; otherwise, use either a module or class attribute.
+(In practice I almost never use class attributes, and infrequently use
+module globals.)
+
+.. CTB consider examples: singleton; caching experience; ...?
+
+How modules are loaded (and when code is executed)
+--------------------------------------------------
+
+Something that has been implicit in the discussion of scope and data
+sharing, above, is the order in which module code is executed.  There
+shouldn't be any surprises here if you've been using Python for a
+while, so I'll be brief: in general, the code at the top level of a
+module is executed at *first* import, and all other code is executed
+in the order you specify when you start calling functions or methods.
+
+Note that because the top level of a module is executed precisely
+once, at *first* import, the following code prints "hello, world" only
+once: ::
+
+  mod_a.py:
+    def f():
+       print 'hello, world'
+
+    f()
+
+  mod_b.py:
+    import mod_a
+
+The ``reload`` function will reload the module and force re-execution at
+the top level: ::
+
+   reload(sys.modules['mod_a'])
+
+It is also worth noting that the module name is bound to the local
+namespace *prior* to the execution of the code in the module, so not
+all symbols in the module are immediately available.  This really only
+impacts you if you have interdependencies between modules: for
+example, this will work if ``mod_a`` is imported before ``mod_b``: ::
+
+ mod_a.py:
+   import mod_b
+
+ mod_b.py:
+   import mod_a
+
+while this will not: ::
+
+ mod_a.py:
+   import mod_b
+   x = 5
+
+ mod_b.py:
+   import mod_a
+   y = mod_a.x
+
+To see why, let's put in some print statements: ::
+
+ mod_a.py:
+   print 'at top of mod_a'
+   import mod_b
+   print 'mod_a: defining x'
+   x = 5
+
+ mod_b.py:
+   print 'at top of mod_b'
+   import mod_a
+   print 'mod_b: defining y'
+   y = mod_a.x
+
+Now try ``import mod_a`` and ``import mod_b``, each time in a new
+interpreter: ::
+
+  >> import mod_a
+  at top of mod_a
+  at top of mod_b
+  mod_b: defining y
+  Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    File "mod_a.py", line 2, in <module>
+      import mod_b
+    File "mod_b.py", line 4, in <module>
+      y = mod_a.x
+  AttributeError: 'module' object has no attribute 'x'
+
+  >> import mod_b
+  at top of mod_b
+  at top of mod_a
+  mod_a: defining x
+  mod_b: defining y
+
+PYTHONPATH, and finding packages & modules during development
+-------------------------------------------------------------
+
+So, you've got your re-usable code nicely defined in modules, and now you
+want to ... use it.  How can you import code from multiple locations?
+
+The simplest way is to set the PYTHONPATH environment variable to
+contain a list of directories from which you want to import code;
+e.g. in UNIX bash, ::
+
+   % export PYTHONPATH=/path/to/directory/one:/path/to/directory/two
+
+or in csh, ::
+
+   % setenv PYTHONPATH /path/to/directory/one:/path/to/directory/two
+
+Under Windows, ::
+
+   > set PYTHONPATH directory1;directory2
+
+should work.
+
+.. @CTB test
+
+However, setting the PYTHONPATH explicitly can make your code less
+movable in practice, because you will forget (and fail to document)
+the modules and packages that your code depends on.  I prefer to modify
+sys.path directly: ::
+
+   import sys
+   sys.path.insert(0, '/path/to/directory/one')
+   sys.path.insert(0, '/path/to/directory/two')
+
+which has the advantage that you are explicitly specifying the location
+of packages that you depend upon in the dependent code.
+
+Note also that you can put modules and packages in zip files and
+Python will be able to import directly from the zip file; just place
+the path to the zip file in either ``sys.path`` or your PYTHONPATH.
+
+Now, I tend to organize my projects into several directories, with a
+``bin/`` directory that contains my scripts, and a ``lib/`` directory
+that contains modules and packages.  If I want to to deploy this code
+in multiple locations, I can't rely on inserting absolute paths into
+sys.path; instead, I want to use relative paths.  Here's the trick I use
+
+In my script directory, I write a file ``_mypath.py``. ::
+
+ _mypath.py:
+    import os, sys
+    thisdir = os.path.dirname(__file__)
+    libdir = os.path.join(thisdir, '../relative/path/to/lib/from/bin')
+
+    if libdir not in sys.path:
+       sys.path.insert(0, libdir)
+
+Now, in each script I put ``import _mypath`` at the top of the script.
+When running scripts, Python automatically enters the script's
+directory into sys.path, so the script can import _mypath.  Then
+_mypath uses the special attribute __file__ to calculate its own
+location, from which it can calculate the absolute path to the library
+directory and insert the library directory into ``sys.path``.
+
+setup.py and distutils: the old fashioned way of installing Python packages
+---------------------------------------------------------------------------
+
+While developing code, it's easy to simply work out of the development
+directory.  However, if you want to pass the code onto others as a
+finished module, or provide it to systems admins, you might want to
+consider writing a ``setup.py`` file that can be used to install your
+code in a more standard way.  setup.py lets you use `distutils
+<http://docs.python.org/dist/dist.html>`__ to install the software by
+running ::
+
+	python setup.py install
+
+Writing a setup.py is simple, especially if your package is pure Python
+and doesn't include any extension files.  A setup.py file for a pure Python
+install looks like this: ::
+
+  from distutils.core import setup
+  setup(name='your_package_name',
+	py_modules = ['module1', 'module2']
+	packages = ['package1', 'package2']
+	scripts = ['script1', 'script2'])
+
+One this script is written, just drop it into the top-level directory
+and type ``python setup.py build``.  This will make sure that distutils
+can find all the files.
+
+Once your setup.py works for building, you can package up the entire
+directory with tar or zip and anyone should be able to install it by
+unpacking the package and typing ::
+
+   % python setup.py install
+
+This will copy the packages and modules into Python's
+``site-packages`` directory, and install the scripts into Python's
+script directory.
+
+setup.py, eggs, and easy_install: the new fangled way of installing Python packages
+-----------------------------------------------------------------------------------
+
+A somewhat newer (and better) way of distributing Python software is
+to use easy_install, a system developed by Phillip Eby as part of the
+setuptools package.  Many of the capabilities of
+easy_install/setuptools are probably unnecessary for scientific Python
+developers (although it's an excellent way to install Python packages
+from other sources), so I will focus on three capabilities that I
+think are most useful for "in-house" development: versioning, user
+installs, and binary eggs.
+
+First, install easy_install/setuptools.  You can do this by downloading ::
+
+    http://peak.telecommunity.com/dist/ez_setup.py
+
+and running ``python ez_setup.py``.  (If you can't do this as the
+superuser, see the note below about user installs.)  Once you've
+installed setuptools, you should be able to run the script
+``easy_install``.
+
+The first thing this lets you do is easily install any software that
+is distutils-compatible.  You can do this from a number of sources:
+from an unpackaged directory (as with ``python setup.py install``);
+from a tar or zip file; from the project's URL or Web page; from an
+egg (see below); or from PyPI, the Python Package Index (see
+http://cheeseshop.python.org/pypi/).
+
+Let's try installing ``nose``, a unit test discovery package we'll be
+looking at in the testing section (below).  Type: ::
+
+   easy_install --install-dir=~/.packages nose
+
+This will go to the Python Package Index, find the URL for nose,
+download it, and install it in your ~/.packages directory.  We're
+specifying an install-dir so that you can install it for your use
+only; if you were the superuser, you could install it for everyone by
+omitting '--install-dir'.
+
+(Note that you need to add ~/.packages to your PATH and your
+PYTHONPATH, something I've already done for you.)
+
+So, now, you can go do 'import nose' and it will work.  Neat, eh?
+Moreover, the nose-related scripts (``nosetests``, in this case) have
+been installed for your use as well.
+
+You can also install specific versions of software; right now, the
+latest version of nose is 0.9.3, but if you wanted 0.9.2, you could
+specify ``easy_install nose==0.9.2`` and it would do its best to find
+it.
+
+This leads to the next setuptools feature of note,
+``pkg_resource.require``.  ``pkg_resources.require`` lets you specify
+that certain packages must be installed.  Let's try it out by
+requiring that CherryPy 3.0 or later is installed: ::
+
+   >> import pkg_resources
+   >> pkg_resources.require('CherryPy >= 3.0')
+   Traceback (most recent call last):
+        ...
+   DistributionNotFound: CherryPy >= 3.0
+
+OK, so that failed... but now let's install CherryPy: ::
+
+   % easy_install --install-dir=~/.packages CherryPy
+
+Now the require will work: ::
+
+   >> pkg_resources.require('CherryPy >= 3.0')
+   >> import CherryPy
+
+This version requirement capability is quite powerful, because it lets
+you specify exactly the versions of the software you need for your own
+code to work.  And, if you need multiple versions of something
+installed, setuptools lets you do that, too -- see the
+``--multi-version`` flag for more information.  While you still can't
+use *different* versions of the same package in the same program, at
+least you can have multiple versions of the same package installed!
+
+Throughout this, we've been using another great feature of setuptools:
+user installs.  By specifying the ``--install-dir``, you can install
+most Python packages for yourself, which lets you take advantage of
+easy_install's capabilities without being the superuser on your
+development machine.
+
+This brings us to the last feature of setuptools that I want to
+mention: eggs, and in particular binary eggs.  We'll explore binary
+eggs later; for now let me just say that easy_install makes it
+possible for you to package up multiple binary versions of your
+software (*with* extension modules) so that people don't have to
+compile it themselves.  This is an invaluable and somewhat
+underutilized feature of easy_install, but it can make life much
+easier for your users.

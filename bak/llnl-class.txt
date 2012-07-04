@@ -1,0 +1,157 @@
+========================================================
+Intermediate and Advanced Software Carpentry with Python
+========================================================
+
+Outline
+=======
+
+Three days: plan for three hours instruction, three hours hands-on, plus
+breaks.
+
+Day 1
+-----
+
+Goal: Ensure that participants understand how to build re-usable Python
+      code & design for re-use and maintenance.
+
+Straight Python:
+
+ * building Python programs and laying out packages
+ * writing for reusability
+ * maintaining Python codebases & testing
+ * advanced features of the Python language
+ * a brief intro to extending Python with C/C++
+
+This day will be devoted to exploring people's knowledge about Python,
+and can be adjusted dynamically to provide more basic or more advanced
+information.
+
+Day 2
+-----
+
+Goal: Introduce participants to the variety of (excellent!) tools for
+      working with Python, esp in science.
+
+Tools
+
+ * Wrapping C/C++ code automatically
+ * NumPy/SciPy
+ * Rpy, matplotlib: tools for plotting
+ * UNIX tools to help you develop and collaborate: screen, VNC
+ * IDLE/IDEs
+ * Centralized and distributed version control 
+ * Trac project management
+ * IPython interactive Python interpreter
+
+This day will explore the variety of tools for effectively working
+with and reaching out from Python.
+
+Day 3
+-----
+
+Goal: Provide hands-on experience with automatically producing static
+      and interactive views of your data and analysis results.
+
+Databases, data analysis, and data presentation
+
+ * Storing data in a structured manner
+ * Built-in Python options (shelve/bsddb)
+ * Using SQL
+     - SQLite
+     - MySQL/PostgreSQL
+ * Building static HTML output
+ * Building dynamic HTML output with CGI/CherryPy
+ * Tying the database into your Web server
+ * Testing your Web stuff
+
+This day will introduce people to effective techniques for data storage
+and presentation with Python.
+
+(A whole day might be needed because of the variety of topics: both
+HTML and SQL must be introduced!)
+
+The menu of topics
+===================
+
+Building reusable code:
+
+ - modules, globals vs locals, import issues
+ - PYTHONPATH
+ - building/installing packages: distutils, easy_install, 'require'
+
+Testing
+
+ - doctests, unittests, test fixtures
+ - more advanced unit testing tools: nose/py.test
+ - code coverage/figleaf
+
+Simple database stuff
+ 
+ - pickling
+ - bsddb/shelve
+ - SQL, sqlite, and MySQL/PostgreSQL
+ - Durus/ZODB: object databases
+
+Docstrings and automatic generation of documentation
+
+Building Python interfaces to C and C++ code
+
+ - writing simple interfaces manually is easy
+ - SWIG, Boost.Python, SIP: examples & tradeoffs
+ - 
+ - testing C code from Python
+
+Java/Jython
+
+.NET/Mono/IronPython
+
+NumPy/SciPy
+
+matplotlib, a matlib-type Python graphing/display system
+
+Rpy, Python interface to R
+
+Generators, iterators, yield, list/generator comprehensions
+
+The lesser known (but useful!) corners of the Python stdlib 
+
+File management and APIs: how to deal nicely with paths, data files,
+  etc.
+
+Using subprocess to flexibly execute external programs.
+
+IPython interactive Python prompt
+
+Another way to develop: scripting with two windows
+
+XML parsing
+
+Generating HTML for analysis summary and presentation
+
+The logging package: logging and py.logging
+
+Python interfaces to MPI
+
+Concurrency and threading in Python: threading vs fork vs...; the
+   Global Interpreter Lock
+
+py.lib sshexec, a flexible way to run programs on multiple computers
+
+How Python is developed and how to think about backwards/forwards compatibility
+
+IDEs: IDLE
+
+Building simple Web servers (with CherryPy, probably?  Or CGI.)
+
+A brief introduction to GUI development in Python.
+
+UNIX tricks: screen, VNC
+
+pdb, the Python debugger
+
+Building your own types: using dicts and lists as interfaces to your own
+   data; advanced dictionary use.
+
+Version control with subversion, darcs, bzr-ng
+
+Project, ticket, and timeline management with Trac.

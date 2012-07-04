@@ -1,0 +1,40 @@
+Using the Web to Present Data
+=============================
+
+Static HTML
+-----------
+
+CGI scripts, dynamic data presentation, and simple form processing
+------------------------------------------------------------------
+
+WSGI
+----
+
+
+
+An introduction to CherryPy
+---------------------------
+
+(note security issues!)
+
+Storing data in pickled object databases
+----------------------------------------
+
+shelve, bsddb
+
+Storing data in Durus, an object database
+-----------------------------------------
+
+durus
+
+SQL databases
+-------------
+
+mention zodb, sqlite, postgresql, mysql; quick examples of postgresql?
+mention sqlalchemy, too.
+
+Database-backed Web programming
+-------------------------------
+
+Remote procedure calls over the Web with XML-RPC
+------------------------------------------------

@@ -1,0 +1,29 @@
+c/c++ <-> Python
+----------------
+
+c++-wrapping.txt
+
+Multiprocessing options
+-----------------------
+
+multiprocessing.txt
+
+Miscellaneous modules
+---------------------
+
+useful-packages.txt
+
+Idiomatic Python Take 3: new-style classes, and metaclasses ;)
+--------------------------------------------------------------
+
+new-style-classes.txt
+
+=== break ===
+
+gui-gossip.txt
+
+web-presentation.txt
+
+xml-parsing.txt
+
+python-30.txt

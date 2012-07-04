@@ -1,0 +1,9 @@
+#! /usr/bin/env python
+from timeit import Timer
+from count import *
+
+t1 = Timer("count1()", "from count import count1")
+print 'count1:', t1.timeit(number=1)
+
+t2 = Timer("count2()", "from count import count2")
+print 'count2:', t2.timeit(number=1)

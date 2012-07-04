@@ -1,0 +1,86 @@
+A Brief Scan of the Python Standard Library
+===========================================
+
+Here are some modules that I thought might be useful to know about.
+
+optparse
+--------
+
+Command line options parsing so that your scripts can take options, print
+help for the options, and otherwise behave like a nicely put together script.
+
+First, import the module and create a parser object:
+
+>>> from optparse import OptionParser
+
+>>> parser = OptionParser()
+
+Now, add some options.  The first option here says to take a filename as
+an option after either -f or --file; the second option toggles the
+'verbose' attribute on the option parser to be True.
+
+>>> _ = parser.add_option("-f", "--file", dest="filename",
+...                  help="write report to FILE", metavar="FILE")
+>>> _ = parser.add_option("-q", "--quiet",
+...                  action="store_false", dest="verbose", default=True,
+...                  help="don't print status messages to stdout")
+
+Now you can parse a dummy command line and retrieve the options as well
+as any following arguments:
+
+>>> test_cmdline = "dummy --quiet -f testfile arg1 arg2 arg3".split()[1:]
+
+>>> (options, args) = parser.parse_args(test_cmdline)
+>>> print options
+{'verbose': False, 'filename': 'testfile'}
+>>> print args
+['arg1', 'arg2', 'arg3']
+
+There's also a convenient help message printout:
+
+>>> try:
+...    parser.parse_args(["-h"])
+... except SystemExit:
+...    pass
+Usage: run-doctests.py [options]
+<BLANKLINE>
+Options:
+  -h, --help            show this help message and exit
+  -f FILE, --file=FILE  write report to FILE
+  -q, --quiet           don't print status messages to stdout
+
+
+
+
+StringIO
+--------
+
+difflib
+-------
+
+pprint
+------
+
+weakref
+-------
+
+itertools and functools
+-----------------------
+
+csv
+---
+
+ConfigParser
+------------
+
+os.path
+-------
+
+tempfile
+--------
+
+gzip
+----
+
+urllib
+------

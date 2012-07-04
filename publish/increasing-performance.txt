@@ -1,0 +1,265 @@
+Measuring and Increasing Performance
+====================================
+
+"Premature optimization is the root of all evil (or at least most of
+it) in programming."  Donald Knuth.
+
+In other words, know thy code!  The only way to find performance
+bottlenecks is to profile your code.  Unfortunately, the situation is
+a bit more complex in Python than you would like it to be: see
+http://docs.python.org/lib/profile.html.  Briefly, there are three
+(!?) standard profiling systems that come with Python: profile,
+cProfile (only since python 2.5!), and hotshot (thought note that
+profile and cProfile are Python and C implementations of the same
+API).  There is also a separately maintained one called statprof, that
+I nominally maintain.
+
+The ones included with Python are deterministic profilers, while
+statprof is a statistical profiler.  What's the difference? To steal
+from the Python docs:
+
+   Deterministic profiling is meant to reflect the fact that all function
+   call, function return, and exception events are monitored, and precise
+   timings are made for the intervals between these events (during which
+   time the user's code is executing). In contrast, statistical profiling
+   randomly samples the effective instruction pointer, and deduces where
+   time is being spent. The latter technique traditionally involves less
+   overhead (as the code does not need to be instrumented), but provides
+   only relative indications of where time is being spent.
+   
+Let's go to the examples.  Suppose we have two functions 'count1'
+and 'count2', and we want to run both and see where time is spent.
+
+-----
+
+Here's some example hotshot code: ::
+
+   import hotshot, hotshot.stats
+   prof = hotshot.Profile('hotshot.prof')
+   prof.runcall(count1)
+   prof.runcall(count2)
+   prof.close()
+   stats = hotshot.stats.load('hotshot.prof')
+   stats.sort_stats('time', 'calls')
+   stats.print_stats(20)
+
+and the resulting output: ::
+
+         2 function calls in 5.769 CPU seconds
+
+   Ordered by: internal time, call count
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    4.335    4.335    4.335    4.335 count.py:8(count2)
+        1    1.434    1.434    1.434    1.434 count.py:1(count1)
+        0    0.000             0.000          profile:0(profiler)
+
+-----
+
+Here's some example cProfile code: ::
+
+   def runboth():
+       count1()
+       count2()
+   
+   import cProfile, pstats
+   cProfile.run('runboth()', 'cprof.out')
+   
+   p = pstats.Stats('cprof.out')
+   p.sort_stats('time').print_stats(10)
+   
+and the resulting output: ::
+
+   Wed Jun 13 00:11:55 2007    cprof.out
+   
+            7 function calls in 5.643 CPU seconds
+   
+      Ordered by: internal time
+   
+      ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+           1    3.817    3.817    4.194    4.194 count.py:8(count2)
+           1    1.282    1.282    1.450    1.450 count.py:1(count1)
+           2    0.545    0.272    0.545    0.272 {range}
+           1    0.000    0.000    5.643    5.643 run-cprofile:8(runboth)
+           1    0.000    0.000    5.643    5.643 <string>:1(<module>)
+           1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+   
+-----
+
+And here's an example of statprof, the statistical profiler: ::
+
+   import statprof
+   statprof.start()
+   count1()
+   count2()
+   statprof.stop()
+   statprof.display()
+
+And the output: ::
+
+     %   cumulative      self
+    time    seconds   seconds  name
+    74.66      4.10      4.10  count.py:8:count2
+    25.34      1.39      1.39  count.py:1:count1
+     0.00      5.49      0.00  run-statprof:2:<module>
+   ---
+   Sample count: 296
+   Total time: 5.490000 seconds
+
+Which profiler should you use?
+------------------------------
+
+statprof used to report more accurate numbers than hotshot or
+cProfile, because hotshot and cProfile had to instrument the code
+(insert tracing statements, basically).  However, the numbers shown
+above are pretty similar to each other and I'm not sure there's much
+of a reason to choose between them any more.  So, I recommend starting
+with cProfile, because it's the officially supported one.
+
+One note -- none of these profilers really work all that well with
+threads, for a variety of reasons.  You're best off doing performance
+measurements on non-threaded code.
+
+Measuring code snippets with timeit
+-----------------------------------
+
+There's also a simple timing tool called timeit: ::
+
+   from timeit import Timer
+   from count import *
+   
+   t1 = Timer("count1()", "from count import count1")
+   print 'count1:', t1.timeit(number=1)
+   
+   t2 = Timer("count2()", "from count import count2")
+   print 'count2:', t2.timeit(number=1)
+
+Speeding Up Python
+==================
+
+There are a couple of options for speeding up Python.
+
+psyco
+-----
+
+(Taken almost verbatim from the `psyco introduction <http://psyco.sourceforge.net/introduction.html>`__!)
+
+psyco is a specializing compiler that lets you run your existing
+Python code much faster, with *absolutely no change* in your source
+code.  It acts like a just-in-time compiler by rewriting several
+versions of your code blocks and then optimizing them by specializing
+the variables they use.
+
+The main benefit is that you get a 2-100x speed-up with an unmodified Python
+interpreter and unmodified source code.  (You just need to import psyco.)
+
+The main drawbacks are that it only runs on i386-compatible processors
+(so, not PPC Macs) and it's a bit of a memory hog.
+
+For example, if you use the prime number generator generator code (see
+`Idiomatic Python <idiomatic-python.txt>`__) to generate all primes
+under 100000, it takes about 10.4 seconds on my development server.
+With psyco, it takes about 1.6 seconds (that's about a 6x speedup).
+Even when doing less numerical stuff, I see at least a 2x speedup.
+
+Installing psyco
+~~~~~~~~~~~~~~~~
+
+(Note: psyco is an extension module and does not come in pre-compiled
+form.  Therefore, you will need to have a Python-compatible C compiler
+installed in order to install psyco.)
+
+Grab the latest psyco snapshot from here: ::
+
+  http://psyco.sourceforge.net/psycoguide/sources.html
+
+unpack it, and run 'python setup.py install'.
+
+Using psyco
+~~~~~~~~~~~
+
+Put the following code at the top of your __main__ Python script: ::
+
+  try:
+     import psyco
+     psyco.full()
+  except ImportError:
+     pass
+
+...and you're done.  (Yes, it's magic!)
+
+The only place where psyco won't help you much is when you have
+already recoded the CPU-intensive component of your code into an
+extension module.
+
+pyrex
+-----
+
+pyrex is a Python-like language used to create C modules for Python.
+You can use it for two purposes: to increase performance by
+(re)writing your code in C (but with a friendly extension language),
+and to make C libraries available to Python.
+
+In the context of speeding things up, here's an example program: ::
+
+   def primes(int maxprime):
+     cdef int n, k, i
+     cdef int p[100000]
+     result = []
+     k = 0
+     n = 2
+     while n < maxprime:
+       i = 0
+   
+       # test against previous primes
+       while i < k and n % p[i] <> 0:
+         i = i + 1
+   
+       # prime? if so, save.
+       if i == k:
+         p[k] = n
+         k = k + 1
+         result.append(n)
+       n = n + 1
+   
+     return result
+
+To compile this, you would execute: ::
+
+   pyrexc primes.pyx
+   gcc -c -fPIC -I /usr/local/include/python2.5 primes.c
+   gcc -shared primes.o -o primes.so
+
+Or, more nicely, you can write a setup.py using some of the Pyrex
+helper functions: ::
+
+   from distutils.core import setup
+   from distutils.extension import Extension
+   from Pyrex.Distutils import build_ext		# <--
+   
+   setup(
+     name = "primes",
+     ext_modules=[ 
+       Extension("primes", ["primes.pyx"], libraries = [])
+       ],
+     cmdclass = {'build_ext': build_ext}
+   )
+
+A few notes:
+
+ - 'cdef' is a C definition statement
+ - this is a "python-alike" language but not Python, per se ;)
+ - pyrex does handle a lot of the nasty C extension stuff for you.
+
+There's an excellent guide to Pyrex available online here:
+http://ldots.org/pyrex-guide/.
+
+I haven't used Pyrex much myself, but I have a friend who swears by
+it.  My concerns are that it's a "C/Python-alike" language but not C
+or Python, and I have already memorized too many weird rules about too
+many languages!
+
+We'll encounter Pyrex a bit further down the road in the context of
+linking existing C/C++ code into your own code.
+
+.. @CTB will we?? ;)

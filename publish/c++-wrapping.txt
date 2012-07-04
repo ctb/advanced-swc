@@ -1,0 +1,394 @@
+Wrapping C/C++ for Python
+=========================
+
+There are a number of options if you want to wrap existing C or C++
+functionality in Python.
+
+Manual wrapping
+---------------
+
+If you have a relatively small amount of C/C++ code to wrap, you can
+do it by hand.  The `Extending and Embedding
+<http://docs.python.org/ext/ext.html>`__ section of the docs is a pretty
+good reference.
+
+When I write wrappers for C and C++ code, I usually provide a procedural
+interface to the code and then use Python to construct an object-oriented
+interface.  I do things this way for two reasons: first, exposing C++
+objects to Python is a pain; and second, I prefer writing higher-level
+structures in Python to writing them in C++.
+
+Let's take a look at a basic wrapper: we have a function 'hello' in a
+file 'hello.c'.  'hello' is defined like so: ::
+
+   char * hello(char * what)
+
+To wrap this manually, we need to do the following.
+
+First, write a Python-callable function that takes in a string and returns
+a string. ::
+
+   static PyObject * hello_wrapper(PyObject * self, PyObject * args)
+   {
+     char * input;
+     char * result;
+     PyObject * ret;
+
+     // parse arguments   
+     if (!PyArg_ParseTuple(args, "s", &input)) {
+       return NULL;
+     }
+   
+     // run the actual function
+     result = hello(input);
+   
+     // build the resulting string into a Python object.
+     ret = PyString_FromString(result);
+     free(result);
+   
+     return ret;
+   }
+
+Second, register this function within a module's symbol table (all Python
+functions live in a module, even if they're actually C functions!) ::
+
+   static PyMethodDef HelloMethods[] = {
+    { "hello", hello_wrapper, METH_VARARGS, "Say hello" },
+    { NULL, NULL, 0, NULL }
+   };
+
+Third, write an init function for the module (all extension modules require
+an init function). ::
+
+   DL_EXPORT(void) inithello(void)
+   {
+     Py_InitModule("hello", HelloMethods);
+   }
+
+Fourth, write a setup.py script: ::
+
+   from distutils.core import setup, Extension
+   
+   # the c++ extension module
+   extension_mod = Extension("hello", ["hellomodule.c", "hello.c"])
+   
+   setup(name = "hello", ext_modules=[extension_mod])
+
+There are two aspects of this code that are worth discussing, even
+at this simple level.
+
+First, error handling: note the PyArg_ParseTuple call.  That call
+is what tells Python that the 'hello' wrapper function takes precisely
+one argument, a string ("s" means "string"; "ss" would mean "two strings";
+"si" would mean "string and integer").  The convention in the C API to Python
+is that a NULL return from a function that returns PyObject* indicates
+an error has occurred; in this case, the error information is set
+within PyArg_ParseTuple and we're just passing the error on up the stack
+by returning NULL.
+
+Second, references.  Python works on a system of reference counting:
+each time a function "takes ownership" of an object (by, for example,
+assigning it to a list, or a dictionary) it increments that object's
+reference count by one using Py_INCREF.  When the object is removed
+from use in that particular place (e.g. removed from the list or
+dictionary), the reference count is decremented with Py_DECREF.  When
+the reference count reaches 0, Python knows that this object is not
+being used by anything and can be freed (it may not be freed immediately,
+however).
+
+Why does this matter?  Well, we're creating a PyObject in this code,
+with PyString_FromString.  Do we need to INCREF it?  To find out,
+go take a look at the documentation for PyString_FromString:
+
+    http://docs.python.org/api/stringObjects.html#l2h-461
+
+See where it says "New reference"?  That means it's handing back an
+object with a reference count of 1, and that's what we want.  If it
+had said "Borrowed reference", then we would need to INCREF the object
+before returning it, to indicate that we wanted the allocated memory to
+survive past the end of the function.
+
+Here's a way to think about references:
+
+ - if you receive a Python object from the Python API, you can use it
+   within your own C code without INCREFing it.
+
+ - if you want to guarantee that the Python object survives past the
+   end of your own C code, you must INCREF it.
+
+ - if you received an object from Python code and it was a new reference,
+   but you don't want it to survive past the end of your own C code, you
+   should DECREF it.
+
+If you wanted to return None, by the way, you can use Py_None.  Remember
+to INCREF it!
+
+Another note: during the class, I talked about using PyCObjects to
+pass opaque C/C++ data types around.  This is useful if you are using
+Python to organize your code, but you have complex structures that you
+don't need to be Python-accessible.  You can wrap pointers in
+PyCObjects (with an associated destructor, if so desired) at which
+point they become opaque Python objects whose memory is managed by the
+Python interpreter.  You can see an example in the example code, under
+``code/hello/hellmodule.c``, functions ``cobj_in``, ``cobj_out``, and
+``free_my_struct``, which pass an allocated C structure back to Python
+using a PyCObject wrapper.
+
+So that's a brief introduction to how you wrap things by hand.
+
+As you might guess, however, there are a number of projects devoted
+to automatically wrapping code.  Here's a brief introduction to some of
+them.
+
+.. CTB: talk about testing c code with python?
+.. Also pointers, deallocators.  (khmer?)
+
+Wrapping Python code with SWIG
+------------------------------
+
+SWIG stands for "Simple Wrapper Interface Generator", and it is
+capable of wrapping C in a large variety of languages.  To quote,
+"SWIG is used with different types of languages including common
+scripting languages such as Perl, PHP, Python, Tcl, Ruby and PHP. The
+list of supported languages also includes non-scripting languages such
+as C#, Common Lisp (CLISP, Allegro CL, CFFI, UFFI), Java, Modula-3 and
+OCAML. Also several interpreted and compiled Scheme implementations
+(Guile, MzScheme, Chicken) are supported."
+
+Whew.
+
+But we only care about Python for now!
+
+SWIG is essentially a macro language that groks C code and can spit
+out wrapper code for your language of choice.
+
+You'll need three things for a SWIG wrapping of our 'hello' program.
+First, a Makefile: ::
+
+   all:
+	swig -python -c++ -o _swigdemo_module.cc swigdemo.i
+	python setup.py build_ext --inplace
+
+This shows the steps we need to run: first, run SWIG to generate
+the C code extension; then run ``setup.py build`` to actually build it.
+
+Second, we need a SWIG wrapper file, 'swigdemo.i'.  In this case, it
+can be pretty simple: ::
+
+   %module swigdemo
+   
+   %{
+   #include <stdlib.h>
+   #include "hello.h"
+   %}
+
+   %include "hello.h"
+
+A few things to note: the %module specifies the name of the module
+to be generated from this wrapper file.  The code between the
+%{ %} is placed, verbatim, in the C output file; in this case it
+just includes two header files.  And, finally, the last line, %include,
+just says "build your interface against the declarations in this header
+file".
+
+OK, and third, we will need a setup.py.  This is virtually identical
+to the setup.py we wrote for the manual wrapping: ::
+
+   from distutils.core import setup, Extension
+   
+   extension_mod = Extension("_swigdemo", ["_swigdemo_module.cc", "hello.c"])
+   
+   setup(name = "swigdemo", ext_modules=[extension_mod])
+
+Now, when we run 'make', swig will generate the _swigdemo_module.cc
+file, as well as a 'swigdemo.py' file; then, setup.py will compile the
+two C files together into a single shared library, '_swigdemo', which
+is imported by swigdemo.py; then the user can just 'import swigdemo'
+and have direct access to everything in the wrapped module.
+
+Note that swig can wrap most simple types "out of the box".  It's only
+when you get into your own types that you will have to worry about providing
+what are called "typemaps"; I can show you some examples.
+
+I've also heard (from someone in the class) that SWIG is essentially
+not supported any more, so buyer beware.  (I will also say that SWIG
+is pretty crufty.  When it works and does exactly what you want, your
+life is good.  Fixing bugs in it is messy, though, as is adding new
+features, because it's a template language, and hence many of the
+constructs are ad hoc.)
+
+Wrapping C code with pyrex
+--------------------------
+
+pyrex, as I discussed yesterday, is a weird hybrid of C and Python
+that's meant for generating fast Python-esque code.  I'm not sure I'd
+call this "wrapping", but ... here goes.
+
+First, write a .pyx file; in this case, I'm calling it 'hellomodule.pyx',
+instead of 'hello.pyx', so that I don't get confused with 'hello.c'. ::
+
+   cdef extern from "hello.h":
+       char * hello(char *s)
+
+   def hello_fn(s):
+       return hello(s)
+
+What the 'cdef' says is, "grab the symbol 'hello' from the file
+'hello.h'".  Then you just go ahead and define your 'hello_fn' as
+you would if it were Python.
+
+and... that's it.  You've still got to write a setup.py, of course: ::
+
+   from distutils.core import setup
+   from distutils.extension import Extension
+   from Pyrex.Distutils import build_ext
+   
+   setup(
+     name = "hello",
+     ext_modules=[ Extension("hellomodule", ["hellomodule.pyx", "hello.c"]) ],
+     cmdclass = {'build_ext': build_ext}
+   )
+
+but then you can just run 'setup.py build_ext --inplace' and you'll be able
+to 'import hellomodule; hellomodule.hello_fn'.
+
+ctypes
+------
+
+In Python 2.5, the ctypes module is included.  This module lets you
+talk directly to shared libraries on both Windows and UNIX, which is
+pretty darned handy.  But can it be used to call our C code directly?
+
+The answer is yes, with a caveat or two.
+
+First, you need to compile 'hello.c' into a shared library. ::
+
+   gcc -o hello.so -shared -fPIC hello.c
+
+Then, you need to tell the system where to find the shared library. ::
+
+   export LD_LIBRARY_PATH=.
+
+Now you can load the library with ctypes: ::
+
+   from ctypes import cdll
+
+   hello_lib = cdll.LoadLibrary("hello.so")
+   hello = hello_lib.hello
+
+So far, so good -- now what happens if you run it? ::
+
+   >> print hello("world")
+   136040696
+
+Whoops!  You still need to tell Python/ctypes what kind of return
+value to expect!  In this case, we're expecting a char pointer: ::
+   
+   from ctypes import c_char_p
+   hello.restype = c_char_p
+
+And now it will work:
+
+   >> print hello("world")
+   hello, world
+
+Voila!
+
+I should say that ctypes is not intended for this kind of wrapping,
+because of the whole LD_LIBRARY_PATH setting requirement.  That is,
+it's really intended for accessing *system* libraries.  But you can
+still use it for other stuff like this.
+
+SIP
+---
+
+SIP is the tool used to generate Python bindings for Qt (PyQt), a graphics
+library.  However, it can be used to wrap any C or C++ API.
+
+As with SWIG, you have to start with a definition file.  In this case,
+it's pretty easy: just put this in 'hello.sip': ::
+
+   %CModule hellomodule 0
+
+   char * hello(char *);
+
+Now you need to write a 'configure' script: ::
+
+   import os
+   import sipconfig
+   
+   # The name of the SIP build file generated by SIP and used by the build
+   # system.
+   build_file = "hello.sbf"
+   
+   # Get the SIP configuration information.
+   config = sipconfig.Configuration()
+   
+   # Run SIP to generate the code.
+   os.system(" ".join([config.sip_bin, "-c", ".", "-b", build_file, "hello.sip"]))
+   
+   # Create the Makefile.
+   makefile = sipconfig.SIPModuleMakefile(config, build_file)
+   
+   # Add the library we are wrapping.  The name doesn't include any platform
+   # specific prefixes or extensions (e.g. the "lib" prefix on UNIX, or the
+   # ".dll" extension on Windows).
+   makefile.extra_libs = ["hello"]
+   makefile.extra_lib_dirs = ["."]   
+   
+   # Generate the Makefile itself.
+   makefile.generate()
+
+Now, run 'configure.py', and then run 'make' on the generated Makefile,
+and your extension will be compiled.
+
+(At this point I should say that I haven't really used SIP before, and I
+feel like it's much more powerful than this example would show you!)
+
+Boost.Python
+------------
+
+If you are an expert C++ programmer and want to wrap a lot of C++ code,
+I would recommend taking a look at the Boost.Python library, which
+lets you run C++ code from Python, and Python code from C++, seamlessly.
+I haven't used it at all, and it's too complicated to cover in a short
+period!
+
+http://www.boost-consulting.com/writing/bpl.html
+
+Recommendations
+---------------
+
+Based on my little survey above, I would suggest using SWIG to write
+wrappers for relatively small libraries, while SIP probably provides a
+more manageable infrastructure for wrapping large libraries (which I
+know I did not demonstrate!)
+
+Pyrex is astonishingly easy to use, and it may be a good option if you
+have a small library to wrap.  My guess is that you would spend a lot
+of time converting types back and forth from C/C++ to Python, but I could
+be wrong.
+
+ctypes is excellent if you have a bunch of functions to run and you don't
+care about extracting complex data types from them: you just want to pass
+around the encapsulated data types between the functions in order to
+accomplish a goal.
+
+One or two more notes on wrapping
+---------------------------------
+
+As I said at the beginning, I tend to write procedural interfaces to
+my C++ code and then use Python to wrap them in an object-oriented
+interface.  This lets me adjust the OO structure of my code more
+flexibly; on the flip side, I only use the code from Python, so I
+really don't care what the C++ code looks like as long as it runs fast
+;).  So, you might find it worthwhile to invest in figuring out how to
+wrap things in a more object-oriented manner.
+
+Secondly, one of the biggest benefits I find from wrapping my C code in
+Python is that all of a sudden I can test it pretty easily.  Testing is
+something you *do not* want to do in C, because you have to declare all
+the variables and stuff that you use, and that just gets in the way of
+writing simple tests.  I find that once I've wrapped something in Python,
+it becomes much more testable.
+

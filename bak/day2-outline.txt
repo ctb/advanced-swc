@@ -1,0 +1,50 @@
+Testing: Unit and Functional Tests
+==================================
+
+testing-python.txt
+
+Testing and Maintenance 
+=======================
+
+Some More Idiomatic Python
+==========================
+
+idiomatic-python-2.txt
+
+Profiling and Performance
+=========================
+
+ - profiling and performance (psyco, pyrex)
+ - hotshot, the confused state of profilers in Python
+ - multiprocessor stuff, event-based stuff
+
+(afternoon)
+
+Extending with C/C++
+====================
+
+simplest possible extension
+"it all comes down to parsetuple"
+example: khmer
+threading and the GIL revisited
+
+Extending with C/C++: Wrapping your code automatically
+
+Tools to help you work
+======================
+
+tools.txt
+
+Simple PDB
+----------
+
+Modules in the stdlib
+=====================
+
+library-tour.txt
+
+Online Resources for Python
+===========================
+
+online-resources.txt
+

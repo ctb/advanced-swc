@@ -1,0 +1,172 @@
+Idiomatic Python Take 3: new-style classes
+==========================================
+
+Someone (Lila) asked me a question about pickling and memory usage
+that led me on a chase through google, and along the way I was
+reminded that new-style classes do have one or two interesting
+points.
+
+You may remember from the first day that there was a brief discussion
+of new-style classes.  Basically, they're classes that inherit from
+'object' explicitly:
+
+>>> class N(object):
+...   pass
+
+and they have a bunch of neat features (covered `here
+<http://www.python.org/download/releases/2.2.3/descrintro/>`__ in
+detail).  I'm going to talk about two of them: __slots__ and descriptors.
+
+__slots__ are a memory optimization.  As you know, you can assign any
+attribute you want to an object:
+
+>>> n = N()
+>>> n.test = 'some string'
+>>> print n.test
+some string
+
+Now, the way this is implemented behind the scenes is that there's a
+dictionary hiding in 'n' (called 'n.__dict__') that holds all of the
+attributes.  However, dictionaries consume a fair bit of memory above
+and beyond their contents, so it might be good to get rid of the dictionary
+in some circumstances and specify precisely what attributes a class has.
+
+You can do that by creating a __slots__ entry:
+
+>>> class M(object):
+...   __slots__ = ['x', 'y', 'z']
+
+Now objects of type 'M' will contain only enough space to hold those three
+attributes, and nothing else.
+
+A side consequence of this is that you can no longer assign to arbitrary
+attributes, however!
+
+>>> m = M()
+>>> m.x = 5
+>>> m.a = 10
+Traceback (most recent call last):
+ ...
+AttributeError: 'M' object has no attribute 'a'
+
+This will look strangely like some kind of type declaration to people
+familiar with B&D languages, but I assure you that it is not!  You are
+supposed to use __slots__ only for memory optimization...
+
+Speaking of memory optimization (which is what got me onto this in the
+first place) apparently using new-style classes and __slots__ both
+dramatically decrease memory consumption:
+
+   http://mail.python.org/pipermail/python-list/2004-November/291840.html
+
+   http://mail.python.org/pipermail/python-list/2004-November/291986.html
+
+Managed attributes
+------------------
+
+Another nifty pair of features in new-style classes are managed
+attributes and descriptors.
+
+You may know that in the olden days, you could intercept attribute access
+by overwriting __getattr__:
+
+>>> class A:
+...    def __getattr__(self, name):
+...        if name == 'special':
+...           return 5
+...        return self.__dict__[name]
+>>> a = A()
+>>> a.special
+5
+
+This turns out to be kind of inefficient, because *every* attribute access
+now goes through __getattr__.  Plus, it's a bit ugly and it can lead to
+buggy code.
+
+Python 2.2 introduced "managed attributes".  With managed attributes, you
+can *define* functions that handle the get, set, and del operations for
+an attribute:
+
+>>> class B(object):
+...   def _get_special(self):
+...       return 5
+...   special = property(_get_special)
+>>> b = B()
+>>> b.special
+5
+
+If you wanted to provide a '_set_special' function, you could do some
+really bizarre things:
+
+>>> class B(object):
+...   def _get_special(self):
+...      return 5
+...   def _set_special(self, value):
+...      print 'ignoring', value
+...   special = property(_get_special, _set_special)
+>>> b = B()
+
+Now, retrieving the value of the 'special' attribute will give you '5',
+no matter what you set it to:
+
+>>> b.special
+5
+>>> b.special = 10
+ignoring 10
+>>> b.special
+5
+
+Ignoring the array of perverse uses you could apply, this is actually
+useful -- for one example, you can now do internal consistency checking
+on attributes, intercepting inconsistent values before they actually get
+set.
+
+Descriptors
+-----------
+
+Descriptors are a related feature that let you implement attribute access
+functions in a different way.  First, let's define a read-only descriptor:
+
+>>> class D(object):
+...   def __get__(self, obj, type=None):
+...      print 'in get:', obj
+...      return 6
+
+Now attach it to a class:
+
+>>> class A(object):
+...   val = D()
+
+>>> a = A()
+>>> a.val				# doctest: +ELLIPSIS
+in get: <A object at ...>
+6
+
+What happens is that 'a.val' is checked for the presence of a __get__ function,
+and if such exists, it is called instead of returning 'val'.  You can also
+do this with __set__ and __delete__:
+
+>>> class D(object):
+...   def __get__(self, obj, type=None):
+...      print 'in get'
+...      return 6
+...
+...   def __set__(self, obj, value):
+...      print 'in set:', value
+...
+...   def __delete__(self, obj):
+...      print 'in del'
+
+>>> class A(object):
+...   val = D()
+>>> a = A()
+>>> a.val = 15
+in set: 15
+>>> del a.val
+in del
+>>> print a.val
+in get
+6
+
+This can actually give you control over things like the *types* of objects
+that are assigned to particular classes: no mean thing.

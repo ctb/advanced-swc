@@ -1,0 +1,16 @@
+#! /usr/bin/env python2.5
+from count import *
+
+print ''
+print '*** HOTSHOT output *** '
+print ''
+
+import hotshot, hotshot.stats
+prof = hotshot.Profile('hotshot.prof')
+prof.runcall(count1)
+prof.runcall(count2)
+prof.close()
+
+stats = hotshot.stats.load('hotshot.prof')
+stats.sort_stats('time', 'calls')
+stats.print_stats(20)

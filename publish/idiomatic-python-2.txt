@@ -1,0 +1,486 @@
+Idiomatic Python revisited
+==========================
+
+sets
+----
+
+Sets recently (2.4?) migrated from a stdlib component into a default type.
+They're exactly what you think: unordered collections of values.
+
+>>> s = set((1, 2, 3, 4, 5))
+>>> t = set((4, 5, 6))
+>>> print s
+set([1, 2, 3, 4, 5])
+
+You can union and intersect them:
+
+>>> print s.union(t)
+set([1, 2, 3, 4, 5, 6])
+>>> print s.intersection(t)
+set([4, 5])
+
+And you can also check for supersets and subsets:
+
+>>> u = set((4, 5, 6, 7))
+>>> print t.issubset(u)
+True
+>>> print u.issubset(t)
+False
+
+One more note: you can convert between sets and lists pretty easily:
+
+>>> sl = list(s)
+>>> ss = set(sl)
+
+``any`` and ``all``
+-------------------
+
+``all`` and ``any`` are two new functions in Python that work with iterables
+(e.g. lists, generators, etc.).  ``any`` returns True if *any* element of
+the iterable is True (and False otherwise); ``all`` returns True if *all*
+elements of the iterable are True (and False otherwise).
+
+Consider:
+
+>>> x = [ True, False ]
+>>> print any(x)
+True
+>>> print all(x)
+False
+
+>>> y = [ True, True ]
+>>> print any(x)
+True
+>>> print all(x)
+False
+
+>>> z = [ False, False ]
+>>> print any(z)
+False
+>>> print all(z)
+False
+
+Exceptions and exception hierarchies
+------------------------------------
+
+You're all familiar with exception handling using try/except:
+
+>>> x = [1, 2, 3, 4, 5]
+>>> x[10]
+Traceback (most recent call last):
+   ...
+IndexError: list index out of range
+
+You can catch all exceptions quite easily:
+
+>>> try:
+...   y = x[10]
+... except:
+...   y = None
+
+but this is considered bad form, because of the potential for over-broad
+exception handling:
+
+>>> try:
+...   y = x["10"]
+... except:
+...   y = None
+
+In general, try to catch the exception most specific to your code:
+
+>>> try:
+...   y = x[10]
+... except IndexError:
+...   y = None
+
+...because then you will see the errors you didn't plan for:
+
+>>> try:
+...   y = x["10"]
+... except IndexError:
+...   y = None
+Traceback (most recent call last):
+   ...
+TypeError: list indices must be integers
+
+Incidentally, you can re-raise exceptions, potentially after doing
+something else:
+
+>>> try:
+...   y = x[10]
+... except IndexError:
+...   # do something else here #
+...   raise
+Traceback (most recent call last):
+   ...
+IndexError: list index out of range
+
+There are some special exceptions to be aware of.  Two that I run into a lot
+are SystemExit and KeyboardInterrupt.  KeyboardInterrupt is what is raised
+when a CTRL-C interrupts Python; you can handle it and exit gracefully if
+you like, e.g.
+
+>>> try:
+...   # do_some_long_running_task()
+...   pass
+... except KeyboardInterrupt:
+...   sys.exit(0)
+
+which is sometimes nice for things like Web servers (more on that tomorrow).
+
+SystemExit is also pretty useful.  It's actually an exception raised by
+``sys.exit``, i.e.
+
+>>> import sys
+>>> try:
+...   sys.exit(0)
+... except SystemExit:
+...   pass
+
+means that sys.exit has no effect!  You can also raise SystemExit instead
+of calling sys.exit, e.g.
+
+>>> raise SystemExit(0)
+Traceback (most recent call last):
+   ...
+SystemExit: 0
+
+is equivalent to ``sys.exit(0)``:
+
+>>> sys.exit(0)
+Traceback (most recent call last):
+   ...
+SystemExit: 0
+
+Another nice feature of exceptions is exception hierarchies.
+Exceptions are just classes that derive from ``Exception``, and you
+can catch exceptions based on their base classes.  So, for example,
+you can catch most standard errors by catching the StandardError
+exception, from which e.g. IndexError inherits:
+
+>>> print issubclass(IndexError, StandardError)
+True
+
+>>> try:
+...   y = x[10]
+... except StandardError:
+...   y = None
+
+You can also catch some exceptions more specifically than others.  For
+example, KeyboardInterrupt inherits from Exception, and some times you
+want to catch KeyboardInterrupts while ignoring all other exceptions:
+
+>>> try:
+...   # ...
+...   pass
+... except KeyboardInterrupt:
+...   raise
+... except Exception:
+...   pass
+
+Note that if you want to print out the error, you can do coerce a string
+out of the exception to present to the user:
+
+>>> try:
+...   y = x[10]
+... except Exception, e:
+...   print 'CAUGHT EXCEPTION!', str(e)
+CAUGHT EXCEPTION! list index out of range
+
+Last but not least, you can define your own exceptions and exception
+hierarchies:
+
+>>> class MyFavoriteException(Exception):
+...   pass
+>>> raise MyFavoriteException
+Traceback (most recent call last):
+   ...
+MyFavoriteException
+
+I haven't used this much myself, but it is invaluable when you are writing
+packages that have a lot of different detailed exceptions that you might
+want to let users handle.
+
+(By default, I usually raise a simple Exception in my own code.)
+
+Oh, one more note: AssertionError.  Remember assert?
+
+>>> assert 0
+Traceback (most recent call last):
+   ...
+AssertionError
+
+Yep, it raises an AssertionError that you can catch, if you REALLY want to...
+
+Function Decorators
+--------------------
+
+Function decorators are a strange beast that I tend to use only in my
+testing code and not in my actual application code.  Briefly, function
+decorators are functions that take functions as arguments, and return
+other functions.  Confused?  Let's see a simple example that makes
+sure that no keyword argument named 'something' ever gets passed into
+a function:
+
+>>> def my_decorator(fn):
+...
+...   def new_fn(*args, **kwargs):
+...      if 'something' in kwargs:
+...         print 'REMOVING', kwargs['something']
+...         del kwargs['something']
+...      return fn(*args, **kwargs)
+...
+...   return new_fn
+
+To apply this decorator, use this funny @ syntax:
+
+>>> @my_decorator
+... def some_function(a=5, b=6, something=None, c=7):
+...   print a, b, something, c
+
+OK, now ``some_function`` has been invisibly replaced with the result of
+``my_decorator``, which is going to be ``new_fn``.  Let's see the result:
+
+>>> some_function(something='MADE IT')
+REMOVING MADE IT
+5 6 None 7
+
+Mind you, without the decorator, the function does exactly what you expect:
+
+>>> def some_function(a=5, b=6, something=None, c=7):
+...   print a, b, something, c
+>>> some_function(something='MADE IT')
+5 6 MADE IT 7
+
+OK, so this is a bit weird.  What possible uses are there for this??
+
+Here are three example uses:
+
+First, synchronized functions like in Java.  Suppose you had a bunch
+of functions (f1, f2, f3...) that could not be called concurrently, so
+you wanted to play locks around them.  You could do this with decorators:
+
+>>> import threading
+>>> def synchronized(fn):
+...   lock = threading.Lock()
+...
+...   def new_fn(*args, **kwargs):
+...      lock.acquire()
+...      print 'lock acquired'
+...      result = fn(*args, **kwargs)
+...      lock.release()
+...      print 'lock released'
+...      return result
+...
+...   return new_fn
+
+and then when you define your functions, they will be locked:
+
+>>> @synchronized
+... def f1():
+...   print 'in f1'
+>>> f1()
+lock acquired
+in f1
+lock released
+
+Second, adding attributes to functions.  (This is why I use them in my testing
+code sometimes.)  
+
+>>> def attrs(**kwds):
+...    def decorate(f):
+...        for k in kwds:
+...            setattr(f, k, kwds[k])
+...        return f
+...    return decorate
+
+>>> @attrs(versionadded="2.2",
+...       author="Guido van Rossum")
+... def mymethod(f):
+...    pass
+
+>>> print mymethod.versionadded
+2.2
+>>> print mymethod.author
+Guido van Rossum
+
+Third, memoize/caching of results.  Here's a really simple example; you can
+find much more general ones online, in particular on the `Python Cookbook
+site <http://www.activestate.com/ASPN/Python/Cookbook/>`__.
+
+Imagine that you have a CPU-expensive one-parameter function:
+
+>>> def expensive(n):
+...   print 'IN EXPENSIVE', n
+...   # do something expensive here, like calculate n'th prime
+
+You could write a caching decorator to wrap this function and record
+results transparently:
+
+>>> def simple_cache(fn):
+...   cache = {}
+...
+...   def new_fn(n):
+...      if n in cache:
+...         print 'FOUND IN CACHE; RETURNING'
+...         return cache[n]
+...
+...      # otherwise, call function & record value
+...      val = fn(n)
+...      cache[n] = val
+...      return val
+...
+...   return new_fn
+
+Then use this as a decorator to wrap the expensive function:
+
+>>> @simple_cache
+... def expensive(n):
+...   print 'IN THE EXPENSIVE FN:', n
+...   return n**2
+
+Now, when you call this function twice with the same argument, if will
+only do the calculation once; the second time, the function call will be
+intercepted and the cached value will be returned.
+
+>>> expensive(55)
+IN THE EXPENSIVE FN: 55
+3025
+>>> expensive(55)
+FOUND IN CACHE; RETURNING
+3025
+
+Check out Michele Simionato's writeup of decorators `here
+<http://www.phyast.pitt.edu/~micheles/python/documentation.html>`__
+for lots more information on decorators.
+
+try/finally
+-----------
+
+Finally, we come to try/finally!
+
+The syntax of try/finally is just like try/except: ::
+
+    try:
+       do_something()
+    finally:
+       do_something_else()
+
+The purpose of try/finally is to ensure that something is done, whether or
+not an exception is raised:
+
+>>> x = [0, 1, 2]
+>>> try:
+...   y = x[5]
+... finally:
+...   x.append('something')
+Traceback (most recent call last):
+   ...
+IndexError: list index out of range
+
+>>> print x
+[0, 1, 2, 'something']
+
+(It's actually semantically equivalent to:
+
+>>> try:
+...   y = x[5]
+... except IndexError:
+...   x.append('something')
+...   raise
+Traceback (most recent call last):
+   ...
+IndexError: list index out of range
+
+but it's a bit cleaner, because the exception doesn't have to be re-raised
+and you don't have to catch a specific exception type.)
+
+Well, why do you need this?  Let's think about locking.  First, get a lock:
+
+>>> import threading
+>>> lock = threading.Lock()
+
+Now, if you're locking something, you want to be darn sure to *release*
+that lock.  But what if an exception is raised right in the middle?
+
+>>> def fn():
+...    print 'acquiring lock'
+...    lock.acquire()
+...    y = x[5]
+...    print 'releasing lock'
+...    lock.release()
+>>> try:
+...    fn()
+... except IndexError:
+...   pass
+acquiring lock
+
+Note that 'releasing lock' is never printed: 'lock' is now left in a
+locked state, and next time you run 'fn' you will hang the program
+forever.  Oops.
+
+You can fix this with try/finally:
+
+>>> lock = threading.Lock()		# gotta trash the previous lock, or hang!
+>>> def fn():
+...    print 'acquiring lock'
+...    lock.acquire()
+...    try:
+...       y = x[5]
+...    finally:
+...       print 'releasing lock'
+...       lock.release()
+>>> try:
+...   fn()
+... except IndexError:
+...   pass
+acquiring lock
+releasing lock
+
+Function arguments, and wrapping functions
+------------------------------------------
+
+You may have noticed above (in the section on decorators) that we wrapped
+functions using this notation: ::
+
+   def wrapper_fn(*args, **kwargs):
+       return fn(*args, **kwargs)
+
+(This takes the place of the old 'apply'.)  What does this do?
+
+Here, \*args assigns all of the positional arguments to a tuple
+'args', and '\*\*kwargs' assigns all of the keyword arguments to a
+dictionary 'kwargs':
+
+>>> def print_me(*args, **kwargs):
+...   print 'args is:', args
+...   print 'kwargs is:', kwargs
+
+>>> print_me(5, 6, 7, test='me', arg2=None)
+args is: (5, 6, 7)
+kwargs is: {'test': 'me', 'arg2': None}
+
+When a function is called with this notation, the args and kwargs are
+unpacked appropriately and passed into the function.  For example,
+the function ``test_call``
+
+>>> def test_call(a, b, c, x=1, y=2, z=3):
+...   print a, b, c, x, y, z
+
+can be called with a tuple of three args (matching 'a', 'b', 'c'):
+
+>>> tuple_in = (5, 6, 7)
+>>> test_call(*tuple_in)
+5 6 7 1 2 3
+
+with some optional keyword args:
+
+>>> d = { 'x' : 'hello', 'y' : 'world' }
+>>> test_call(*tuple_in, **d)
+5 6 7 hello world 3
+
+Incidentally, this lets you implement the 'dict' constructor in one
+line!
+
+>>> def dict_replacement(**kwargs):
+...    return kwargs

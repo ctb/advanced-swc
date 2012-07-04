@@ -1,0 +1,105 @@
+Useful Packages
+===============
+
+subprocess
+----------
+
+'subprocess' is a new addition (Python 2.4), and it provides a convenient
+and powerful way to run system commands.  (...and you should use it instead
+of os.system, commands.getstatusoutput, or any of the Popen modules).
+
+Unfortunately subprocess is a bi hard to use at the moment; I'm hoping
+to help fix that for Python 2.6, but in the meantime here are some basic
+commands.
+
+Let's just try running a system command and retrieving the output:
+
+>>> import subprocess
+>>> p = subprocess.Popen(['/bin/echo', 'hello, world'], stdout=subprocess.PIPE)
+>>> (stdout, stderr) = p.communicate()
+>>> print stdout,
+hello, world
+
+What's going on is that we're starting a subprocess (running
+'/bin/echo hello, world') and then asking for all of the output
+aggregated together.
+
+We could, for short strings, read directly from p.stdout (which is a file
+handle):
+
+>>> p = subprocess.Popen(['/bin/echo', 'hello, world'], stdout=subprocess.PIPE)
+>>> print p.stdout.read(),
+hello, world
+
+but you could run into trouble here if the command returns a lot of data;
+you should use communicate to get the output instead.
+
+Let's do something a bit more complicated, just to show you that it's
+possible: we're going to write to 'cat' (which is basically an echo chamber):
+
+>>> from subprocess import PIPE
+>>> p = subprocess.Popen(["/bin/cat"], stdin=PIPE, stdout=PIPE)
+>>> (stdout, stderr) = p.communicate('hello, world')
+>>> print stdout,
+hello, world
+
+There are a number of more complicated things you can do with subprocess --
+like interact with the stdin and stdout of other processes -- but they
+are fraught with peril.
+
+rpy
+---
+
+`rpy <http://rpy.sf.net/>`__ is an extension for R that lets R and
+Python talk naturally.  For those of you that have never used R, it's
+a very nice package that's mainly used for statistics, and it has *tons*
+of libraries.
+
+To use rpy, just ::
+
+   from rpy import *
+
+The most important symbol that will be imported is 'r', which lets you
+run arbitrary R comments: ::
+
+   r("command")
+
+For example, if you wanted to run a principle component analysis, you could
+do it like so: ::
+
+   from rpy import *
+   
+   def plot_pca(filename):
+       r("""data <- read.delim('%s', header=FALSE, sep=" ", nrows=5000)""" \
+         % (filename,))
+   
+       r("""pca <- prcomp(data, scale=FALSE, center=FALSE)""")
+       r("""pairs(pca$x[,1:3], pch=20)""")
+   
+   plot_pca('vectors.txt')
+
+Now, the problem with this code is that I'm really just using Python to 
+drive R, which seems inefficient.  You *can* go access the data directly
+if you want; I'm just using R's loading features directly because they're
+faster.  For example,
+
+   x = r.pca['x']
+
+is equivalent to 'x <- pca$x'.
+
+matplotlib
+----------
+
+`matplotlib <http://matplotlib.sf.net>`__ is a plotting package that
+aims to make "simple things easy, and hard things possible".  It's got
+a fair amount of matlab compatibility if you're into that.
+
+Simple example: ::
+
+   x = [ i**2 for i in range(0, 500) ]
+   hist(x, 100)
+
+
+
+.. numpy/scipy
+.. matplotlib

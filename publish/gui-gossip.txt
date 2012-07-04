@@ -1,0 +1,48 @@
+GUI Gossip
+==========
+
+Tkinter
+
+ - fairly primitive;
+ - but: comes with every Python install!
+ - still a bit immature (feb 2007) for Mac OS X native ("Aqua"); X11 version
+   works fine on OS X.
+
+
+PyQT (http://www.riverbankcomputing.com/software/pyqt/intro)
+
+ - mature;
+ - cross platform;
+ - freely available for Open Source Software use;
+ - has a testing framework!
+
+KWWidgets (http://www.kwwidgets.org/)
+
+ - immature; based on Tk, so Mac OS X native is still a bit weak;
+ - lightweight;
+ - attractive;
+ - has a testing framework!
+
+pyFLTK (http://sf.net/projects/pyfltk/)
+
+ - cross platform;
+ - FLTK is mature, although primitive;
+ - not very pretty;
+ - very lightweight;
+
+wxWindows (http://www.wxwindows.org/)
+
+ - cross platform;
+ - mature?; looks good.
+ - no personal or "friend" experience;
+ - try reading http://www.ibm.com/developerworks/library/l-wxwin.html
+
+pyGTK (http://www.pygtk.org/)
+
+ - cross platform;
+ - mature; looks good.
+ - no personal or "friend" experience;
+ - UI designer;
+
+Mild recommendation: start with Qt, which is apparently very mature
+and very powerful.

@@ -1,0 +1,26 @@
+Online Resources for Python
+===========================
+
+The obvious one: http://www.python.org/ (including, of course,
+http://docs.python.org/).
+
+The next most obvious one: comp.lang.python.announce /
+`python-announce
+<http://www.python.org/mailman/listinfo/python-announce-list>`__.
+This is a low traffic list that is really quite handy; note especially
+a brief summary of postings called "the Weekly Python-URL", which as
+far as I can tell is only available on this list.
+
+`The Python Cookbook <http://www.activestate.com/ASPN/Python/Cookbook/>`__
+is chock full of useful recipes; some of them have been extracted and
+prettified in the O'Reilly Python Cookbook book, but they're all available
+through the Cookbook site.
+
+The Daily Python-URL is distinct from the Weekly Python-URL; read it
+at http://www.pythonware.com/daily/.  Postings vary from daily to weekly.
+
+http://planet.python.org and http://www.planetpython.org/ are Web sites
+that aggregate Python blogs (mine included, hint hint).  Very much worth
+skimming over a coffee break.
+
+And, err, Google is a fantastic way to figure stuff out!

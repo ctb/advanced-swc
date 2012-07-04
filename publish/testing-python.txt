@@ -1,0 +1,414 @@
+Testing Your Software
+=====================
+
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are, by
+definition, not smart enough to debug it."  -- Brian W. Kernighan.
+
+Everyone tests their software to some extent, if only by running it
+and trying it out (technically known as "smoke testing").  Most
+programmers do a certain amount of exploratory testing, which involves
+running through various functional paths in your code and seeing if
+they work.
+
+Systematic testing, however, is a different matter.  Systematic
+testing simply cannot be done properly without a certain (large!)
+amount of automation, because every change to the software means that
+the software needs to be tested all over again. 
+
+Below, I will introduce you to some lower level automated testing
+concepts, and show you how to use built-in Python constructs to start
+writing tests.
+
+An introduction to testing concepts
+-----------------------------------
+
+There are several types of tests that are particularly useful to
+research programmers.  *Unit tests* are tests for fairly small and
+specific units of functionality.  *Functional tests* test entire
+functional paths through your code.  *Regression tests* make sure
+that (within the resolution of your records) your program's output
+has not changed.
+
+All three types of tests are necessary in different ways.
+
+Regression tests tell you when unexpected changes in behavior occur,
+and can reassure you that your basic data processing is still working.
+For scientists, this is particularly important if you are trying to
+link past research results to new research results: if you can no
+longer replicate your original results with your updated code, then
+you must regard your code with suspicion, *unless* the changes are
+intentional.
+
+By contrast, both unit and functional tests tend to be *expectation*
+based.  By this I mean that you use the tests to lay out what behavior
+you *expect* from your code, and write your tests so that they *assert*
+that those expectations are met.
+
+The difference between unit and functional tests is blurry in most
+actual implementations; unit tests tend to be much shorter and require
+less setup and teardown, while functional tests can be quite long. I
+like Kumar McMillan's distinction: functional tests tell you *when*
+your code is broken, while unit tests tell you *where* your code is
+broken.  That is, because of the finer granularity of unit tests, a
+broken unit test can identify a particular piece of code as the source
+of an error, while functional tests merely tell you that a feature is
+broken.
+
+The doctest module
+------------------
+
+Let's start by looking at the doctest module.  If you've been
+following along, you will be familiar with doctests, because I've been
+using them throughout this text!  A doctest links code and behavior
+explicitly in a nice documentation format.  Here's an example:
+
+>>> print 'hello, world'
+hello, world
+
+When doctest sees this in a docstring or in a file, it knows that it
+should execute the code after the '>>>' and compare the actual output
+of the code to the strings immediately following the '>>>' line.
+
+To execute doctests, you can use the doctest API that comes with
+Python: just type: ::
+
+   import doctest
+   doctest.testfile(textfile)
+
+or ::
+
+   import doctest
+   doctest.testmod(modulefile)
+
+The doctest docs contain complete documentation for the module, but
+in general there are only a few things you need to know.
+
+First, for multi-line entries, use '...' instead of '>>>':
+
+>>> def func():
+...   print 'hello, world'
+>>> func()
+hello, world
+
+Second, if you need to elide exception code, use '...':
+
+>>> raise Exception("some error occurred")
+Traceback (most recent call last):
+   ...
+Exception: some error occurred
+
+More generally, you can use '...' to match random output, as long as you
+you specify a doctest directive:
+
+>>> import random
+>>> print 'random number:', random.randint(0, 10)  # doctest: +ELLIPSIS
+random number: ...
+
+Third, doctests are terminated with a blank line, so if you
+explicitly expect a blank line, you need to use a special construct:
+
+>>> print ''
+<BLANKLINE>
+
+To test out some doctests of your own, try modifying these files
+and running them with ``doctest.testfile``.
+
+Doctests are useful in a number of ways.  They encourage a kind of
+conversation with the user, in which you (the author) demonstrate how
+to actually use the code.  And, because they're executable, they
+ensure that your code works as you expect.  However, they can also
+result in quite long docstrings, so I recommend putting long doctests
+in files separate from the code files.  Short doctests can go anywhere
+-- in module, class, or function docstrings.
+
+Unit tests with unittest
+------------------------
+
+If you've heard of automated testing, you've almost certainly heard of
+unit tests.  The idea behind unit tests is that you can constrain the
+behavior of small units of code to be correct by testing the bejeezus
+out of them; and, if your smallest code units are broken, then how can
+code built on top of them be good?
+
+The `unittest module <http://docs.python.org/lib/module-unittest.html>`__
+comes with Python.  It provides a framework for writing and running
+unit tests that is at least convenient, if not as simple as it could be
+(see the 'nose' stuff, below, for something that is simpler).
+
+Unit tests are almost always demonstrated with some sort of numerical
+process, and I will be no different.  Here's a simple unit test, using
+the unittest module: ::
+
+ test_sort.py:
+
+  #! /usr/bin/env python
+  import unittest
+  class Test(unittest.TestCase):
+   def test_me(self):
+      seq = [ 5, 4, 1, 3, 2 ]
+      seq.sort()
+      self.assertEqual(seq, [1, 2, 3, 4, 5])
+
+  if __name__ == '__main__':
+     unittest.main()
+
+If you run this, you'll see the following output: ::
+
+  .
+  ----------------------------------------------------------------------
+  Ran 1 test in 0.000s
+
+  OK
+
+Here, ``unittest.main()`` is running through all of the symbols in the
+global module namespace and finding out which classes inherit from
+``unittest.TestCase``.  Then, for each such class, it finds all methods
+starting with ``test``, and for each one it instantiates a new object
+and runs the function: so, in this case, just: ::
+
+  Test().test_me()
+
+If any method fails, then the failure output is recorded and presented
+at the end, but the rest of the test methods are run irrespective.
+
+``unittest`` also includes support for test *fixtures*, which are functions
+run before and after each test; the idea is to use them to set up and
+tear down the test environment.  In the code below, ``setUp`` creates
+and shuffles the ``self.seq`` sequence, while ``tearDown`` deletes it. ::
+
+ test_sort2.py:
+
+    #! /usr/bin/env python
+    import unittest
+    import random
+
+    class Test(unittest.TestCase):
+        def setUp(self):
+            self.seq = range(0, 10)
+            random.shuffle(self.seq)
+
+        def tearDown(self):
+            del self.seq
+
+        def test_basic_sort(self):
+            self.seq.sort()
+            self.assertEqual(self.seq, range(0, 10))
+
+        def test_reverse(self):
+            self.seq.sort()
+            self.seq.reverse()
+            self.assertEqual(self.seq, [9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
+
+        def test_destruct(self):
+            self.seq.sort()
+            del self.seq[-1]
+            self.assertEqual(self.seq, range(0, 9))
+
+    unittest.main()
+
+In both of these examples, it's important to realize that an *entirely
+new object* is created, and the fixtures run, for each test function.  This
+lets you write tests that alter or destroy test data without having to
+worry about interactions between the code in different tests.
+
+Testing with nose
+-----------------
+
+nose is a unit test discovery system that makes writing and organizing
+unit tests very easy.  I've actually written a whole separate article on
+them, so we should go `check that out <nose-intro.html>`__.
+
+.. (CTB: testing primes?)
+
+Code coverage analysis
+----------------------
+
+`figleaf <http://darcs.idyll.org/~t/projects/figleaf/README.html>`__
+is a code coverage recording and analysis system that I wrote and
+maintain.  It's published in PyPI, so you can install it with
+easy_install.
+
+Basic use of figleaf is very easy.  If you have a script ``program.py``,
+rather than typing ::
+
+       % python program.py
+
+to run the script, run ::
+
+       % figleaf program.py
+
+This will transparently and invisibly record coverage to the file
+'.figleaf' in the current directory.  If you run the program several
+times, the coverage will be aggregated.
+
+To get a coverage report, run 'figleaf2html'.  This will produce a
+subdirectory ``html/`` that you can view with any Web browser; the
+index.html file will contain a summary of the code coverage, along
+with links to individual annotated files.  In these annotated files,
+executed lines are colored green, while lines of code that are not
+executed are colored red.  Lines that are not considered lines of code
+(e.g. docstrings, or comments) are colored black.
+
+My main use for code coverage analysis is in testing (which is why I
+discuss it in this section!)  I record the code coverage for my unit
+and functional tests, and then examine the output to figure out which
+files or libraries to focus on testing next.  As I discuss below, it
+is relatively easy to achieve 70-80% code coverage by this method.
+
+When is code coverage most useful?  I think it's most useful in the
+early and middle stages of testing, when you need to track down code
+that is not touched by your tests.  However, 100% code coverage by your
+tests doesn't guarantee bug free code: this is because figleaf only measures
+line coverage, not branch coverage.  For example, consider this code: ::
+
+  if a.x or a.y:
+     f()
+
+If ``a.x`` is True in all your tests, then ``a.y`` will never be
+evaluated -- even though ``a`` may not have an attribute ``y``, which
+would cause an AttributeError (which would in turn be a bug, if not
+properly caught).  Python does not record which subclauses of the
+``if`` statement are executed, so without analyzing the structure of
+the program there's no simple way to figure it out.
+
+Here's another buggy example with 100% code coverage: ::
+
+   def f(a):
+      if a:
+         a = a.upper()
+      return a.strip()
+
+   s = f("some string")
+
+Here, there's an implicit ``else`` after the if statement; the function f()
+could be rewritten to this: ::
+
+   def f(a):
+      if a:
+         a = a.upper()
+      else:
+         pass
+      return a.strip()
+
+   s = f("some string")
+
+and the pass statement would show up as "not executed".
+
+So, bottom line: 100% test coverage is *necessary* for a well-tested
+program, because code that is not executed by any test at all is
+simply not being tested.  However, 100% test coverage is not
+*sufficient* to guarantee that your program is free of bugs, as you can
+see from some of the examples above.
+
+Adding tests to an existing project
+-----------------------------------
+
+This testing discussion should help to convince you that not only
+*should* you test, but that there are plenty of tools available to
+*help* you test in Python.  It may even give you some ideas about how
+to start testing new projects.  However, retrofitting an *existing*
+project with tests is a different, challenging problem -- where do you
+start?  People are often overwhelmed by the amount of code they've
+written in the past.
+
+I suggest the following approach.
+
+First, start by writing a test for each bug as they are discovered.
+The procedure is fairly simple: isolate the cause of the bug; write a
+test that demonstrates the bug; fix the bug; verify that the test
+passes.  This has several benefits in the short term: you are fixing
+bugs, you're discovering weak points in your software, you're becoming
+more familiar with the testing approach, and you can start to think
+about commonalities in the fixtures necessary to *support* the tests.
+
+Next, take out some time -- half a day or so -- and write fixtures and
+functional tests for some small chunk of code; if you can, pick a piece
+of code that you're planning to clean up or extend.  Don't worry about
+being exhaustive, but just write tests that target the main point of
+the code that you're working on.
+
+Repeat this a few times.  You should start to discover the benefits of
+testing at this point, as you increasingly prevent bugs from occurring
+in the code that's covered by the tests.  You should also start to get
+some idea of what fixtures are necessary for your code base.
+
+Now use code coverage analysis to analyze what code your tests cover,
+and what code isn't covered.  At this point you can take a targetted
+approach and spend some time writing tests aimed directly at uncovered
+areas of code.  There should now be tests that cover 30-50% of your
+code, at least (it's very easy to attain this level of code
+coverage!).
+
+Once you've reached this point, you can either decide to focus on
+increasing your code coverage, or (my recommendation) you can simply
+continue incrementally constraining your code by writing tests for bugs
+and new features.  Assuming you have a fairly normal code churn, you should
+get to the point of 70-80% coverage within a few months to a few years
+(depending on the size of the project!)
+
+This approach is effective because at each stage you get immediate
+feedback from your efforts, and it's easier to justify to managers
+than a whole-team effort to add testing.  Plus, if you're unfamiliar
+with testing or with parts of the code base, it gives you time to adjust
+and adapt your approach to the needs of the particular project.
+
+Two articles that discuss similar approaches in some detail are
+available online: `Strangling Legacy Code
+<http://www.stickyminds.com/s.asp?F=S9705_MAGAZINE_2>`__, and `Growing
+Your Test Harness
+<http://www.developertesting.com/archives/GrowYourHarness.pdf>`__.  I
+can also recommend the book `Working Effectively with Legacy Code
+<http://www.amazon.com/Working-Effectively-Legacy-Robert-Martin/dp/0131177052>`__,
+by Robert Martin.
+
+Concluding thoughts on automated testing
+----------------------------------------
+
+Starting to do automated testing of your code can lead to immense
+savings in maintenance and can also increase productivity
+dramatically.  There are a number of reasons why automated testing can
+help so much, including quick discovery of regressions, increased
+design awareness due to more interaction with the code, and early
+detection of simple bugs as well as unwanted epistatic interactions
+between code modules.  The single biggest improvement for me has been
+the ability to refactor code without worrying as much about breakage.
+In my personal experience, automated testing is a 5-10x productivity
+booster when working alone, and it can save multi-person teams from
+potentially disastrous errors in communication.
+
+Automated testing is not, of course, a silver bullet.  There are several
+common worries.
+
+One worry is that by increasing the total amount of code in a project,
+you increase both the development time and the potential for bugs and
+maintenance problems.  This is certainly possible, but test code is
+very different from regular project code: it can be removed much more
+easily (which can be done whenever the code being tested undergoes
+revision), and it should be *much* simpler even if it is in fact
+bulkier.
+
+Another worry is that too much of a focus on testing will decrease the
+drive for new functionality, because people will focus more on writing
+tests than they will on the new code.  While this is partly a
+managerial issues, it is worth pointing out that the process of
+writing new code will be dramatically faster if you don't have to
+worry about old code breaking in unexpected ways as you add
+functionality.
+
+A third worry is that by focusing on automation, you will miss bugs in
+code that is difficult to automate.  There are two considerations
+here.  First, it is possible to automate quite a bit of testing; the
+decision not to automat a particular test is almost always made
+because of financial or time considerations rather than technical
+limitations.  And, second, automated testing is simply not a
+replacement for certain types of manual testing -- in particular,
+exploratory testing, in which the programmers or users interact with
+the program, will always turn up new bugs, and is worth doing
+independent of the automated tests.
+
+How much to test, and what to test, are decisions that need to be made
+on an individual project basis; there are no hard and fast rules.
+However, I feel confident in saying that some automated testing will
+always improve the quality of your code and result in maintenance
+improvements.

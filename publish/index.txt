@@ -1,0 +1,38 @@
+Day 1
+-----
+
+`Idiomatic Python I <idiomatic-python.html>`__
+
+`Structuring Python Programs <structuring-python.html>`__
+
+`Testing Python Code <testing-python.html>`__
+
+`An introduction to nose <.>`__
+
+Day 2
+-----
+
+`Idiomatic Python II <idiomatic-python-2.html>`__
+
+`Measuring and Increasing Performance <increasing-performance.html>`__
+
+`Tools to Help You Work <tools.html>`__
+
+`pyparsing <.>`__
+
+`Online Resources for Python <online-resources.html>`__
+
+Day 3
+-----
+
+`Wrapping C/C++ for Python <c++-wrapping.html>`__
+
+`Packages for Multiprocessing <multiprocessing.html>`__
+
+`Some Useful Python Packages <useful-packages.html>`__
+
+`Idiomatic Python III: New-style Classes <new-style-classes.html>`__
+
+`GUI Gossip  <gui-gossip.html>`__
+
+`What's Coming in Python 3.0 <python-30.html>`__

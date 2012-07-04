@@ -1,0 +1,411 @@
+pyparsing
+=========
+
+Basic pyparsing
+---------------
+
+Matching text
+~~~~~~~~~~~~~
+
+>>> import pyparsing
+>>> from pyparsing import Word, printables, Literal, StringEnd, Optional
+>>> grammar = Literal("Hello,") + Word(printables)
+>>> print grammar.parseString("Hello, nurse!")
+['Hello,', 'nurse!']
+
+So that's easy enough.  But here, we *know* that 'Hello' is going to be
+there -- we're really only interested in the word *after* 'Hello'.
+
+>>> grammar = Literal("Hello,").suppress() + Word(printables)
+>>> print grammar.parseString("Hello, nurse!")
+['nurse!']
+
+Let's break things down a bit:
+
+>>> article = Word(printables)
+>>> grammar = Literal("Hello,").suppress() + article
+>>> print grammar.parseString("Hello, nurse!")
+['nurse!']
+
+Wouldn't it be nice to give the article ("nurse!") a name?
+
+>>> article = Word(printables).setResultsName("the_article")
+>>> grammar = Literal("Hello,").suppress() + article
+>>> results = grammar.parseString("Hello, nurse!")
+
+Now, given this, you can do two things: you can either refer to the result
+as an element of a list,
+
+>>> print results[0]
+nurse!
+
+or by name:
+
+>>> print results.the_article
+nurse!
+
+This kind of naming is incredibly handy and it's one of the main reasons
+I chose pyparsing.  For example, let's try out more complicated example:
+
+>>> article = Word(printables).setResultsName("the_article")
+>>> salutation = (Literal("Hello,") | Literal("Goodbye,")).suppress()
+>>> adjective = Word(printables).setResultsName('adjective')
+>>> grammar = ((salutation + adjective + article) | \
+...	       (salutation + article)) + StringEnd()
+
+This can match "Hello, nurse!":
+
+>>> results_1 = grammar.parseString("Hello, nurse!")
+
+as well as "Goodbye, cruel world!":
+
+>>> results_2 = grammar.parseString("Goodbye, cruel world!")
+
+but in *both* cases you can extract ``the_article`` by name:
+
+>>> print results_1.the_article
+nurse!
+>>> print results_2.the_article
+world!
+
+And, of course, the ``adjective`` result is only set in the case where it
+was matched:
+
+>>> print results_1.adjective
+<BLANKLINE>
+>>> print results_2.adjective
+cruel
+
+Note that this was not a particularly good example; rather than writing
+the grammer like so: 
+
+>>> grammar = ((salutation + adjective + article) | \
+...	       (salutation + article)) + StringEnd()
+
+I could have written it like this:
+
+>>> grammar = salutation + Optional(adjective) + article + StringEnd()
+
+Interlude: whitespace drives tokenizing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+I've studiously avoided talking about removing that final '!' from
+"Hello, nurse!" until now, and that's because it's not this simple: ::
+
+  article = Word(printables) + "!"
+  print article.parseString("nurse!")
+
+You see, the '+' operator (a.k.a. ``pyparsing.And``) only joins *tokens*,
+and pyparsing implicitly tokenizes on *whitespace*.  So *this* would work,
+
+>>> article = Word(printables) + "!"
+>>> print article.parseString("nurse !")
+['nurse', '!']
+
+because now you're parsing 'Word AND !'.
+
+(The only way I know of to remove that '!' is to use a parse action:
+
+>>> def remove_exclamation(x):
+...    return x[0].rstrip('!')
+>>> article = Word(printables)
+>>> article = article.setParseAction(remove_exclamation)
+>>> print article.parseString("nurse!")
+['nurse']
+
+More about parse actions later.)
+
+Bottom line: tokenizing on whitespace makes a lot of things easier, and
+some things harder; I guess it's a good thing...
+
+SkipTo
+~~~~~~
+
+Suppose you have an annoying section of text that you want to just
+jump past and not parse:
+
+>>> annoying = """
+... SOMETHING
+... SOMETHING ELSE
+... END
+... MORE STUFF THAT MATTERS
+... """
+
+This is easily handled with SkipTo:
+
+>>> from pyparsing import SkipTo
+>>> end_marker = SkipTo("END", include=True).suppress()
+>>> (end_marker + "MORE STUFF THAT MATTERS").parseString(annoying)
+(['MORE STUFF THAT MATTERS'], {})
+
+Regex matches
+~~~~~~~~~~~~~
+
+You can do regular expression matches too:
+
+>>> from pyparsing import Regex
+>>> hex_num = Regex("[0-9a-fA-F]+")
+>>> hex_num.parseString("1f")
+(['1f'], {})
+
+Lists and more
+~~~~~~~~~~~~~~
+
+Suppose we want to allow matches to multiple hex numbers.  We can do this:
+
+>>> from pyparsing import OneOrMore
+>>> multiple = OneOrMore(hex_num)
+>>> multiple.parseString('1f')
+(['1f'], {})
+>>> multiple.parseString('1f 2f 3f')
+(['1f', '2f', '3f'], {})
+
+Parse actions
+~~~~~~~~~~~~~
+
+Parse actions are functions that are run on parsed tokens; generally,
+the result of the parse action replaces the parsed token.  For example,
+
+>>> def convert_hex(x):
+...   return eval('0x' + x[0])
+>>> hex_num = hex_num.setParseAction(convert_hex).setResultsName('num')
+>>> result = hex_num.parseString('1f')
+>>> print result.num
+31
+
+As you can see, this sort of parse function allows you to convert
+parse results into objects automagically (after all, there's no reason
+that ``convert_hex`` needs to return an integer; it could return an object
+of any type).
+
+Defining convenient and re-usable parse objects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This brings us to a "putting it all together" moment: suppose that you
+have some kind of string that turns up throughout the string you're
+parsing.  For the parser I was working on, one common string was an
+expectation value (i.e. a floating point number).  This was no
+*ordinary* floating point number, though: it *could* start with 'e', which
+meant that you needed to prepend a '1'.  For example, ::
+
+   1.0  ==>  1.0
+   1e-5 ==>  1e-5
+   e-5  ==>  1e-5
+
+Well, the first obvious way to handle this is like so:
+
+>>> from pyparsing import Word, nums
+>>> e_val = Word(nums + "e-")
+>>> def convert_eval(x):
+...    e = x[0]
+...    if e.startswith('e'): e = '1' + e
+...    return float(e)
+>>> e_val = e_val.setParseAction(convert_eval)
+>>> e_val.parseString('e-5')
+([1.0000000000000001e-05], {})
+
+OK, that's acceptable, but ugly if you have lots of e_val's floating around.
+
+You could refine things by naming your expectation values when they occur:
+
+>>> e_val_1 = e_val.setResultsName('e_val_1')
+>>> e_val_2 = e_val.setResultsName('e_val_2')
+>>> results = (e_val_1 + e_val_2).parseString('1e-3 5.0')
+>>> results.e_val_1
+0.001
+>>> results.e_val_2
+5.0
+
+...but that's still a lot of code.  Here's the suggestion that Paul made
+to me when he first saw my hacked-together parser:
+
+>>> e_val = Word(nums + "e-")
+>>> def named_e_val(name):
+...    x = Word(nums + "e-").setParseAction(convert_eval).copy()
+...    x = x.setResultsName(name)
+...    return x
+
+Now I can just say
+
+>>> grammar = named_e_val('e_val_1') + named_e_val('e_val_2')
+>>> results = grammar.parseString('1e-3 5.0')
+>>> results.e_val_1
+0.001
+>>> results.e_val_2
+5.0
+
+Building a BLAST output parser
+------------------------------
+
+Now on to my real problem: building an output parser for NCBI BLAST.
+
+Briefly, NCBI BLAST is a very widely used sequence search algorithm,
+and it has a notoriously annoying set of output formats.  The most
+annoying thing about the output is that only the human-intended
+output contains a full set of information, so you need to parse something
+that has been formatted for humans.
+
+Another annoying thing about the output format is that it changes regularly
+in subtle ways.  This means that most BLAST parsers break at least once a
+year.
+
+Why did I choose pyparsing?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+I chose pyparsing for this project partly because I am using it for
+twill, and it worked quite well there. However, the main decision
+point was that I needed to make a *readable* and *maintainable*
+parser, so that down the road I wouldn't have to relearn all sorts of
+nasty syntax in order to update the parser when NCBI changed their
+output formats.  pyparsing seemed to fit that bill.
+
+What kind of output do I need to deal with?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+So, how bad is the output?  Well, here's an example: ::
+
+   >ref|NP_598432.1| U2 small nuclear ribonucleoprotein auxiliary factor (U2AF) 2 [Mus
+              musculus]
+             Length = 306
+   
+    Score =  394 bits (1013), Expect = e-110
+    Identities = 202/279 (72%), Positives = 222/279 (79%)
+    Frame = -1
+   
+   Query: 888 FLNNQMKLAGLAQAPGNPVLAVQITWDKNFSSLEFRSVDETTQALAFDGIIFQGQSLKLR 709
+              F N QM+L GL QAPGNPVLAVQI  DKNF+ LEFRSVDETTQA+AFDGIIFQGQSLK+R
+   Sbjct: 3   FFNAQMRLGGLTQAPGNPVLAVQINQDKNFAFLEFRSVDETTQAMAFDGIIFQGQSLKIR 62
+   
+   Query: 708 RPHDYQPLPGMSESPALHVPVGVVSTVVQDTPHKLFIGGLPSYLTDDQVKELLTSFGPLK 529
+              RPHDYQPLPGMSE+P+++VP GVVSTVV D+ HKLFIGGLP+YL DDQVKELLTSFGPLK
+   Sbjct: 63  RPHDYQPLPGMSENPSVYVP-GVVSTVVPDSAHKLFIGGLPNYLNDDQVKELLTSFGPLK 121
+   
+   Query: 528 AFNLVKDSATCFSKGYAFCEYADVNVTDQAIAGLNGMQLGDKKLIVQRASVGAKNANXXX 349
+              AFNLVKDSAT  SKGYAFCEY D+NVTDQAIAGLNGMQLGDKKL+VQRASVGAKNA
+   Sbjct: 122 AFNLVKDSATGLSKGYAFCEYVDINVTDQAIAGLNGMQLGDKKLLVQRASVGAKNATLST 181
+   
+   Query: 348 XXXXXXXXXXPGLASSQVQHSGLPTEVLCLMNMVTPXXXXXXXXXXXXXXXXXXECGKYG 169
+                        PGL SSQVQ  G PTEVLCLMNMV P                  EC KYG
+   Sbjct: 182 INQTPVTLQVPGLMSSQVQMGGHPTEVLCLMNMVLPEELLDDEEYEEIVEDVRDECSKYG 241
+   
+   Query: 168 SVRSVEIPRPVNGLDIPGCGKIFVEFASLLDCQRAQQAL 52
+               V+S+EIPRPV+G+++PGCGKIFVEF S+ DCQ+A Q L 
+   Sbjct: 242 LVKSIEIPRPVDGVEVPGCGKIFVEFTSVFDCQKAMQGL 280
+
+Lots of finicky things to parse in there, eh?  Let's focus on the score: ::
+
+    Score =  394 bits (1013), Expect = e-110
+    Identities = 202/279 (72%), Positives = 222/279 (79%)
+    Frame = -1
+   
+My first iteration
+~~~~~~~~~~~~~~~~~~
+
+Here's my first set of code: ::
+
+        self.score = Literal("Score =").suppress() +
+         Word(nums + ".").setParseAction(make_float).setResultsName('bits') +
+                Literal("bits (").suppress() +
+         Word(nums).setParseAction(make_int).setResultsName('bits_max') +
+                Literal("),").suppress() +
+                Word("Expect()" + nums).suppress() + Literal("=") +
+         Word(e_val).setParseAction(make_float).setResultsName('expect') +
+                Literal("Identities =").suppress() + identities +
+                Optional(Literal("Positives =").suppress() + positives) +
+                Optional(Literal("Gaps =").suppress() + gaps) +
+                Optional((Literal("Frame =").suppress() +
+                Word(frame).setParseAction(make_int).setResultsName('frame1') +
+                Optional(Literal("/").suppress() +
+         Word(frame).setParseAction(make_int).setResultsName('frame2'))) |
+                (Literal("Strand =") + restOfLine))
+
+
+What can I say?  It worked...
+
+What it looked like after Paul's suggestions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+I sent the above on to Paul, and after some gagging, he sent me back a bunch
+of suggestions.  I ended up with this: ::
+
+        self.score = Literal("Score =") + named_float('bits') +
+                "bits (" + named_int('bits_max') + ")," +
+                Word("Expect()" + nums) + "=" + named_float('expect') +
+                "Identities =" + identities +
+                Optional("Positives =" + positives) +
+                Optional("Gaps =" + gaps) +
+                Optional(("Frame =" + named_frame('frame1') +
+                  Optional("/" + named_frame('frame2'))) |
+                         ("Strand =" + restOfLine))
+
+This is clearly much friendler to read!
+
+I would also like to note that this kind of refactoring is tricky to do
+without being able to test each subset of the parse grammar.  pyparsing
+let me break the parse grammar down into subsets in a very nice and
+convenient way, which really helped with testing.
+
+A sort of conclusion
+~~~~~~~~~~~~~~~~~~~~
+
+My parsing code is basically a generator wrapped around pyparsing
+results; here's what the ``blastparser`` API looks like: ::
+
+   for record in parse_file('blast_output.txt'):
+      print '-', record.query_name, record.database.name
+      for hit in record.hits:
+         print '--', hit.subject_name, hit.subject_length
+         print '  ', hit.total_score, hit.total_expect
+         for submatch in hit:
+            print submatch.expect, submatch.bits
+            
+            print submatch.query_sequence
+            print submatch.alignment
+            print submatch.subject_sequence
+
+Because I use parse actions to turn each block into an object, it's really
+a very thin layer.
+
+Future thoughts
+~~~~~~~~~~~~~~~
+
+Speed.  Speed speed speed speed.  How can I speed things up?
+
+Without profiling, I'm not sure where the bottlenecks are, and that
+should probably be my first step.  Nonetheless, I'm planning to try
+out lazy evaluation, which would work something like this.
+
+First, define the block structure:
+
+>>> from pyparsing import SkipTo
+>>> complex_block = """
+... SOMETHING
+... SOMETHING ELSE
+... END
+... MORE STUFF THAT MATTERS
+... """
+>>> end_marker = SkipTo("END", include=True).suppress()
+
+Build a grammar for the internal structure:
+
+>>> internal_grammar = "..."
+
+Define a lazy evaluation class:
+
+>>> class LazyParse:
+...    def __init__(self, text):
+...       self.text = text
+...       self.parsed = None
+...    def parse(self):
+...       if self.parsed:
+...          return self.parsed
+...       self.parsed = internal_grammar.parseString(self.text)
+...       return self.parsed
+
+Then, set a parse action:
+
+>>> def parse_complex_block(x):
+...   return LazyParse(x[0])
+>>> end_marker = end_marker.setParseAction(parse_complex_block)
+
+and Bob's your uncle... but I haven't gotten all the mechanics worked out.

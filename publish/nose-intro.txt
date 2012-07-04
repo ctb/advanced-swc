@@ -1,0 +1,654 @@
+An Extended Introduction to the nose Unit Testing Framework
+===========================================================
+
+Welcome! This is an introduction, with lots and lots of examples, to the
+nose_ unit test discovery & execution framework.  If that's not what
+you want to read, I suggest you hit the Back button now.
+
+The latest version of this document can be found at
+
+   http://ivory.idyll.org/articles/nose-intro.html
+
+(Last modified October 2006.)
+
+What are unit tests?
+--------------------
+
+A unit test is an automated code-level test for a small "unit" of
+functionality.  Unit tests are often designed to test a broad range of the
+expected functionality, including any weird corner cases and some
+tests that *should not* work.  They tend to interact minimally with
+external resources like the disk, the network, and databases; testing
+code that accesses these resources is usually put under functional
+tests, regression tests, or integration tests.
+
+(There's lots of discussion on whether unit tests should do things
+like access external resources, and whether or not they are still
+"unit" tests if they do.  The arguments are fun to read, and I
+encourage you to read them.  I'm going to stick with a fairly
+pragmatic and broad definition: anything that exercises a small, fairly
+isolated piece of functionality is a unit test.)
+
+Unit tests are almost always pretty simple, by intent; for example, if
+you wanted to test an (intentionally naive) regular expression for
+validating the form of e-mail addresses, your test might look something
+like this: ::
+
+   EMAIL_REGEXP = r'[\S.]+@[\S.]+'
+
+   def test_email_regexp():
+      # a regular e-mail address should match
+      assert re.match(EMAIL_REGEXP, 'test@nowhere.com')
+
+      # no domain should fail
+      assert not re.match(EMAIL_REGEXP, 'test@')
+
+There are a couple of ways to integrate unit tests into your
+development style. These include Test Driven Development, where unit
+tests are written prior to the functionality they're testing; during
+refactoring, where existing code -- sometimes code without any
+automated tests to start with -- is retrofitted with unit tests as
+part of the refactoring process; bug fix testing, where bugs are first
+pinpointed by a targetted test and then fixed; and straight test
+enhanced development, where tests are written organically as the code
+evolves.  In the end, I think it matters more that you're writing unit
+tests than it does exactly how you write them.
+
+For me, the most important part of having unit tests is that they can
+be run *quickly*, *easily*, and *without any thought* by developers.
+They serve as executable, enforceable documentation for function and
+API, and they also serve as an invaluable reminder of bugs you've
+fixed in the past.  As such, they improve my ability to more quickly
+deliver functional code -- and that's really the bottom line.
+
+Why use a framework? (and why nose?)
+------------------------------------
+
+It's pretty common to write tests for a library module like so: ::
+
+   def test_me():
+      # ... many tests, which raise an Exception if they fail ...
+   
+   if __name__ -- '__main__':
+      test_me()
+
+The 'if' statement is a little hook that runs the tests when the module
+is executed as a script from the command line.  This is great, and fulfills
+the goal of having automated tests that can be run easily.  Unfortunately,
+they *cannot be run without thought*, which is an amazingly important and
+oft-overlooked requirement for automated tests!  In practice, this means
+that they will only be run when that module is being worked on -- a big
+problem.
+
+People use unit test discovery and execution frameworks so that they
+can add tests to existing code, execute those tests, and get a simple
+report, without thinking.  Below, you'll see some of the advantages
+that using such a framework gives you: in addition to finding and
+running your tests, frameworks can let you selectively execute
+certain tests, capture and collate error output, and add coverage and
+profiling information.  (You can always write your own framework --
+but why not take advantage of someone else's, even if they're not as
+smart as you?)
+
+"Why use nose in particular?" is a more difficult question.  There are
+many unit test frameworks in Python, and more arise every day.  I
+personally use nose, and it fits my needs fairly well.  In particular,
+it's actively developed, by a guy (Jason Pellerin) who answers his
+e-mail pretty quickly; it's fairly stable (it's in beta at the time of
+this writing); it has a really fantastic plug-in architecture that lets
+me extend it in convenient ways; it integrates well with distutils;
+it can be adapted to mimic any *other* unit test discovery framework
+pretty easily; and it's being used by a number of big projects, which
+means it'll probably still be around in a few years.
+
+I hope the best reason *for you* to use nose will be that I'm giving
+you this extended introduction ;).
+
+A few simple examples
+---------------------
+
+First, install nose.  Using setuptools_, this is easy: ::
+
+   easy_install nose
+
+Now let's start with a few examples.  Here's the simplest nose test you
+can write: ::
+
+    def test_b():
+        assert 'b' -- 'b'
+
+Put this in a file called ``test_me.py``, and then run ``nosetests``.
+You will see this output: ::
+
+   .
+   ----------------------------------------------------------------------
+   Ran 1 test in 0.005s
+   
+   OK
+
+If you want to see exactly what test was run, you can use ``nosetests -v``. ::
+
+   test_stuff.test_b ... ok
+   
+   ----------------------------------------------------------------------
+   Ran 1 test in 0.015s
+   
+   OK
+
+Here's a more complicated example. ::
+
+    class TestExampleTwo:
+        def test_c(self):
+            assert 'c' -- 'c'
+
+Here, nose will first create an object of type ``TestExampleTwo``, and
+only *then* run ``test_c``: ::
+
+    test_stuff.TestExampleTwo.test_c ... ok
+
+Most new test functions you write should look like either of these tests --
+a simple test function, or a class containing one or more test functions.
+But don't worry -- if you have some old tests that you ran with ``unittest``,
+you can still run them.  For example, this test: ::
+
+    class ExampleTest(unittest.TestCase):
+        def test_a(self):
+            self.assert_(1 -- 1)
+
+still works just fine: ::
+
+    test_a (test_stuff.ExampleTest) ... ok
+
+Test fixtures
+~~~~~~~~~~~~~
+
+A fairly common pattern for unit tests is something like this: ::
+
+   def test():
+      setup_test()
+      try:
+         do_test()
+         make_test_assertions()
+      finally:
+         cleanup_after_test()
+
+Here, ``setup_test`` is a function that creates necessary objects,
+opens database connections, finds files, etc. -- anything that
+establishes necessary preconditions for the test.  Then ``do_test``
+and ``make_test_assertions`` acually run the test code and check to
+see that the test completed successfully.  Finally -- and independently
+of whether or not the test *succeeded* -- the preconditions are cleaned
+up, or "torn down".
+
+This is such a common pattern for unit tests that most unit test frameworks
+let you define setup and teardown "fixtures" for each test; these fixtures
+are run before and after the test, as in the code sample above.  So, instead
+of the pattern above, you'd do: ::
+
+   def test():
+      do_test()
+      make_test_assertions()
+
+   test.setUp = setup_test
+   test.tearDown = cleanup_after_test
+
+The unit test framework then examines each test function, class, and
+method for fixtures, and runs them appropriately.
+
+Here's the canonical example of fixtures, used in classes rather than in
+functions: ::
+
+   class TestClass:
+      def setUp(self):
+         ...
+
+      def tearDown(self):
+         ...
+
+      def test_case_1(self):
+         ...
+
+      def test_case_2(self):
+         ...
+
+      def test_case_3(self):
+         ...
+
+The code that's actually run by the unit test framework is then ::
+
+   for test_method in get_test_classes():
+      obj = TestClass()
+      obj.setUp()
+      try:
+         obj.test_method()
+      finally:
+         obj.tearDown()
+
+That is, for *each* test case, a new object is created, set up, and torn
+down -- thus approximating the Platonic ideal of running each test in a
+completely new, pristine environment.
+
+(Fixture, incidentally, comes from the Latin "fixus", meaning "fixed".
+The origin of its use in unit testing is not clear to me, but you can
+think of fixtures as permanent appendages of a set of tests, "fixed"
+in place.  The word "fixtures" make more sense when considered as part of a
+test suite than when used on a single test -- one fixture for each *set* of
+tests.)
+
+Examples are included!
+~~~~~~~~~~~~~~~~~~~~~~
+
+All of the example code in this article is available in a .tar.gz file.
+Just download the package at ::
+
+   http://darcs.idyll.org/~t/projects/nose-demo.tar.gz
+
+and unpack it somewhere; information on running the examples is in
+each section, below.
+
+To run the simple examples above, go to the top directory in the
+example distribution and type ::
+
+   nosetests -w simple/ -v
+
+A somewhat more complete guide to test discovery and execution
+--------------------------------------------------------------
+
+nose is a unit test **discovery** and execution package.  Before it
+can execute any tests, it needs to discover them.  nose has a set of
+rules for discovering tests, and then a fixed protocol for running
+them.  While both can be modified by plugins, for the moment let's
+consider only the default rules.
+
+nose only looks for tests under the working directory -- normally the
+current directory, unless you specify one with the ``-w`` command line
+option.
+
+Within the working directory, it looks for any directories, files,
+modules, or packages that match the test pattern. [ ... ]  In particular,
+note that packages are recursively scanned for test cases.
+
+Once a test module or a package is found, it's loaded, the setup
+fixtures are run, and the modules are examined for test functions and
+classes -- again, anything that matches the test pattern.  Any test
+functions are run -- along with associated fixtures -- and test
+classes are also executed.  For each test method in test classes, a
+new object of that type is instantiated, the setup fixture (if any) is
+run, the test method is run, and (if there was a setup fixture) the
+teardown fixture is run.
+
+Running tests
+~~~~~~~~~~~~~
+
+Here's the basic logic of test running used by nose (in Python pseudocode) ::
+
+   if has_setup_fixture(test):
+      run_setup(test)
+
+   try:
+
+      run_test(test)
+
+   finally:
+      if has_setup_fixture(test):
+         run_teardown(test)
+
+Unlike tests themselves, however, test fixtures on test modules and
+test packages are run only once.  This extends the test logic above to
+this (again, pseudocode): ::
+
+   ### run module setup fixture
+
+   if has_setup_fixture(test_module):
+      run_setup(test_module)
+
+   ### run all tests
+
+   try:
+      for test in get_tests(test_module):
+
+         try:                               ### allow individual tests to fail
+            if has_setup_fixture(test):
+               run_setup(test)
+
+            try:
+
+               run_test(test)
+
+            finally:
+               if has_setup_fixture(test):
+                  run_teardown(test)
+         except:
+            report_error()
+
+   finally:
+
+      ### run module teardown fixture
+
+      if has_setup_fixture(test_module):
+         run_teardown(test_module)
+
+A few additional notes:
+
+  * if the setup fixture fails, no tests are run and the teardown fixture
+    isn't run, either.
+
+  * if there is no setup fixture, then the teardown fixture is not run.
+
+  * whether or not the tests succeed, the teardown fixture is run.
+
+  * all tests are executed even if some of them fail.
+
+Debugging test discovery
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+nose can only execute tests that it *finds*.  If you're creating a new
+test suite, it's relatively easy to make sure that nose finds all your
+tests -- just stick a few ``assert 0`` statements in each new module,
+and if nose doesn't kick up an error it's not running those tests!
+It's more difficult when you're retrofitting an existing test suite to
+run inside of nose; in the extreme case, you may need to write a plugin
+or modify the top-level nose logic to find the existing tests.
+
+The main problem I've run into is that nose will only find tests that
+are properly named *and* within directory or package hierarchies that
+it's actually traversing!  So placing your test modules under the
+directory ``my_favorite_code`` won't work, because nose will not even
+enter that directory.  However, if you make ``my_favorite_code`` a
+*package*, then nose *will* find your tests because it traverses over
+modules within packages.
+
+In any case, using the ``-vv`` flag gives you verbose output from
+nose's test discovery algorithm.  This will tell you whether or not
+nose is even looking in the right place(s) to find your tests.
+
+The nose command line
+---------------------
+
+Apart from the plugins, there are only a few options that I use
+regularly.
+
+-w: Specifying the working directory
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+nose only looks for tests in one place.  The -w flag lets you specify
+that location; e.g. ::
+
+   nosetests -w simple/
+
+will run only those tests in the directory ``./simple/``.
+
+As of the latest development version (October 2006) you can specify
+multiple working directories on the command line: ::
+
+   nosetests -w simple/ -w basic/
+
+See `Running nose programmatically` for an example of how to specify
+multiple working directories using Python, in nose 0.9.
+
+-s: Not capturing stdout
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, nose captures all output and only presents stdout from tests
+that fail.  By specifying '-s', you can turn this behavior off.
+
+-v: Info and debugging output
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+nose is intentionally pretty terse.  If you want to see what tests are
+being run, use '-v'.
+
+Specifying a list of tests to run
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+nose lets you specify a set of tests on the command line; only tests
+that are *both* discovered *and* in this set of tests will be run.
+For example, ::
+
+   nosetests -w simple tests/test_stuff.py:test_b
+
+only runs the function ``test_b`` found in ``simple/tests/test_stuff.py``.
+
+Running doctests in nose
+------------------------
+
+Doctests_ are a nice way to test individual Python functions in a
+convenient documentation format.  For example, the docstring for
+the function ``multiply``, below, contains a doctest: ::
+
+    def multiply(a, b):
+      """
+      'multiply' multiplies two numbers and returns the result.
+
+      >>> multiply(5, 10)		# doctest: +SKIP
+      50
+      >>> multiply(-1, 1)		# doctest: +SKIP
+      -1
+      >>> multiply(0.5, 1.5)		# doctest: +SKIP
+      0.75
+      """
+      return a*b
+
+(Ignore the SKIP pragmas; they're put in so that this file itself can
+be run through doctest without failing...)
+
+The doctest module (part of the Python standard module) scans through
+all of the docstrings in a package or module, executes any line
+starting with a ``>>>``, and compares the actual output with the
+expected output contained in the docstring.
+
+Typically you run these directly on a module level, using the sort of
+``__main__`` hack I showed above.  The doctest plug-in for nose adds
+doctest discovery into nose -- all non-test packages are scanned for
+doctests, and any doctests are executed along with the rest of the
+tests.
+
+To use the doctest plug-in, go to the directory containing the modules
+and packages you want searched and do ::
+
+   nosetests --with-doctest
+
+All of the doctests will be automatically found and executed.  Some
+example doctests are included with the demo code, under ``basic``; you can run them
+like so: ::
+
+   % nosetests -w basic/ --with-doctest -v
+   doctest of app_package.stuff.function_with_doctest ... ok
+   ...
+
+Note that by default nose only looks for doctests in *non-test*
+code.  You can add ``--doctest-tests`` to the command line to search
+for doctests in your test code as well.
+
+The doctest plugin gives you a nice way to combine your various
+low-level tests (e.g. both unit tests and doctests) within one single
+nose run; it also means that you're less likely to forget about running
+your doctests!
+
+The 'attrib' plug-in -- selectively running subsets of tests
+------------------------------------------------------------
+
+The attrib extension module lets you flexibly select subsets of tests
+based on test *attributes* -- literally, Python variables attached
+to individual tests.
+
+Suppose you had the following code (in ``attr/test_attr.py``): ::
+
+    def testme1():
+        assert 1
+
+    testme1.will_fail = False
+
+    def testme2():
+        assert 0
+
+    testme2.will_fail = True
+
+    def testme3():
+        assert 1
+
+Using the attrib extension, you can select a subset of these tests
+based on the attribute ``will_fail``.  For example, ``nosetests -a
+will_fail`` will run only ``testme2``, while ``nosetests -a
+\!will_fail`` will run both ``testme1`` and ``testme3``.  You can also
+specify precise values, e.g. ``nosetests -a will_fail=False`` will run
+only ``testme1``, because ``testme3`` doesn't have the attribute ``will_fail``.
+
+You can also tag tests with *lists* of attributes, as in ``attr/test_attr2.py``: ::
+
+    def testme5():
+        assert 1
+
+    testme5.tags = ['a', 'b']
+
+    def testme6():
+        assert 1
+
+    testme6.tags = ['a', 'c']
+
+Then ``nosetests -a tags=a`` will run both ``testme5`` and ``testme6``,
+while ``nosetests -a tags=b`` will run only ``testme5``.
+
+Attribute tags also work on classes and methods as you might expect.  In
+``attr/test_attr3.py``, the following code ::
+
+    class TestMe:
+        x = True
+
+        def test_case1(self):
+            assert 1
+
+        def test_case2(self):
+            assert 1
+
+        test_case2.x = False
+
+lets you run both ``test_case1`` (with ``-a x``) and ``test_case2``
+(with ``-a \!x``); here, methods inherit the attributes of their
+parent class, but can override the class attributes with
+method-specific attributes.
+
+Running nose programmatically
+-----------------------------
+
+nose has a friendly top-level API which makes it accessible to Python
+programs.  You can run nose inside your own code by doing this: ::
+
+    import nose
+
+    ### configure paths, etc here
+
+    nose.run()
+
+    ### do other stuff here
+
+By default nose will pick up on ``sys.argv``; if you want to pass in
+your own arguments, use ``nose.run(argv=args)``.  You can also
+override the default test collector, test runner, test loader, and
+environment settings at this level.  This makes it convenient to add
+in certain types of new behavior; see ``multihome/multihome-nose`` for
+a script that lets you specify multiple "test home directories" by
+overriding the test collector.
+
+There are a few caveats to mention about using the top-level nose
+commands.  First, be sure to use ``nose.run``, not ``nose.main`` --
+``nose.main`` will exit after running the tests (although you can wrap
+it in a 'try/finally' if you insist).  Second, in the current version
+of nose (0.9b1), ``nose.run`` swipes ``sys.stdout``, so ``print`` will
+not yield any output after ``nose.run`` completes.  (This should be
+fixed soon.)
+
+Writing plug-ins -- a simple guide
+----------------------------------
+
+As nice as nose already is, the plugin system is probably the best
+thing about it.  nose uses the setuptools API to load all registered
+nose plugins, allowing you to install 3rd party plugins quickly and
+easily; plugins can modify or override output handling, test
+discovery, and test execution.
+
+nose comes with a couple of plugins that demonstrate the power of the
+plugin API; I've discussed two (the attrib and doctest plugins) above.
+I've also written a few, as part of the pinocchio_ nose extensions package.
+
+Here are a few tips and tricks for writing plugins.
+
+ * read through the ``nose.plugins.IPluginInterface`` code a few times.
+
+ * for the ``want*`` functions (``wantClass``, ``wantMethod``, etc.)
+   you need to know:
+
+      - a return value of True indicates that your plugin wants this item.
+      - a return value of False indicates that your plugin doesn't want this item.
+      - a return value of None indicates that your plugin doesn't care about this item.
+
+   Also note that plugins aren't guaranteed to be run in any particular order,
+   so you have to order them yourself if you need this.  See the
+   ``pinocchio.decorator`` module (part of pinocchio_) for an example.
+
+ * abuse stderr.  As much as I like the logging package, it can
+   confuse matters by capturing output in ways I don't fully
+   understand (or at least don't want to have to configure for
+   debugging purposes).  While you're working on your plugin, put
+   ``import sys; err = sys.stderr`` at the top of your plugin module,
+   and then use ``err.write`` to produce debugging output.
+
+ * notwithstanding the stderr advice, ``-vv`` is your friend -- it will tell
+   you that your test file isn't even being examined for tests, and it will
+   also tell you what order things are being run in.
+
+ * write your initial plugin code by simply copying ``nose.plugins.attrib``
+   and deleting everything that's not generic.  This greatly simplifies
+   getting your plugin loaded & functioning.
+
+ * to register your plugin, you need this code in e.g. a file called 'setup.py' ::
+
+        from setuptools import setup
+
+        setup(
+            name='my_nose_plugin',
+            packages = ['my_nose_plugin'],
+            entry_points = {        
+                'nose.plugins': [
+                    'pluginA = my_nose_plugin:pluginA',
+                    ]
+                },
+        )
+
+   You can then install (and register) the plugin with ``easy_install .``,
+   run in the directory containing 'setup.py'.
+
+nose caveats -- let the buyer beware, occasionally
+--------------------------------------------------
+
+I've been using nose fairly seriously for a while now, on multiple
+projects.  The two most frustrating problems I've had are with the
+output capture (mentioned above, in `Running nose programmatically`)
+and a situation involving the ``logging`` module.  The output capture
+problem is easily taken care of, once you're aware of it -- just be
+sure to save sys.stdout before running any nose code.  The logging
+module problem cropped up when converting an existing unit test suite
+over to nose: the code tested an application that used the ``logging``
+module, and reconfigured logging so that nose's output didn't show up.
+This frustrated my attempts to trace test discovery to no end -- as
+far as I could tell, nose was simply stopping test discovery at a
+certain point!  I doubt there's a general solution to this, but I
+thought I'd mention it.
+
+Credits
+-------
+
+Jason Pellerin, besides for being the author of nose, has been very
+helpful in answering questions!  Terry Peppers and Chad Whitacre
+kindly sent me errata.
+
+.. This introduction is Copyright (C) 2006, C. Titus Brown,
+.. titus@idyll.org.  Please don't redistribute or publish it without his
+.. express permission.
+
+.. Comments, corrections, and additions are welcome, of course!
+
+.. _nose: http://somethingaboutorange.com/mrl/projects/nose/
+.. _Doctests: http://docs.python.org/lib/module-doctest.html
+.. _pinocchio: http://darcs.idyll.org/~t/projects/pinocchio/doc/index.html
+.. _setuptools: http://peak.telecommunity.com/DevCenter/setuptools

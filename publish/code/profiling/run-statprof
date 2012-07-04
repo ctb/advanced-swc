@@ -1,0 +1,13 @@
+#! /usr/bin/env python2.5
+from count import *
+
+print ''
+print '*** STATPROF output ***'
+print ''
+
+import statprof
+statprof.start()
+count1()
+count2()
+statprof.stop()
+statprof.display()

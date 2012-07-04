@@ -1,0 +1,138 @@
+========================================================
+Intermediate and Advanced Software Carpentry with Python
+========================================================
+
+Teaching philosophy
+===================
+
+Light coverage of background & structure of topics, with lots of demos
+and hands-on experience.  The overall goal is to prepare students to
+forge ahead on their own, yet give them enough material to point them
+in the right direction.
+
+Outline
+=======
+
+Three days: plan for 3-4 hours lectures, 2-3 hours hands-on
+interspersed, plus breaks.
+
+Day 1
+-----
+
+Goal: Ensure that participants understand how to build re-usable Python
+      code & design for re-use and maintenance.
+
+Morning: assessment of level & "fun stuff"
+
+ * intermediate & advanced features of the Python language: tuples,
+   lists, and dictionaries; functions, exceptions, & inheritance;
+   private methods and variables; generators and iterators; list
+   comprehension; defining new "-like" types (list-like,
+   dict-like).
+
+ * building Python programs and laying out packages: module globals,
+   classes vs modules; single vs multiple files; libraries vs
+   executables; some simple naming schemes.
+
+Afternoon: 
+
+ * writing for reusability: classes, modules, packages.  Decomposing
+       functionality, and what structures are appropriate.
+
+ * maintaining Python codebases and testing: unittest, doctest, the
+   point of testing.  Using code coverage analyses to target tests.
+   Building domain specific languages for testing/extensibility
+   purposes.  The "developer lifecycle", refactoring, and regression
+   tests (*when did my program change!?*).  pdb/tracebacks for
+   debugging.
+
+ * the stdlib -- useful modules.  (whole laundry list here!)
+
+ * a brief intro to extending Python with C/C++; creating/maintaining
+   mixed codebases.
+
+ * Threading in Python and the Global Interpreter Lock.  Practical
+   examples of why this matters.
+
+ * What's coming in 3.0.
+
+This day will be devoted to exploring people's knowledge about Python,
+and can be adjusted dynamically to provide more basic or more advanced
+information.
+
+Day 2
+-----
+
+Goal: Introduce participants to the variety of (excellent!) tools for
+      working with Python, esp in science.
+
+Tools:
+
+ * Wrapping C/C++ code automatically: SWIG, SIP, Boost examples.
+
+ * UNIX tools to help you develop and collaborate: screen, VNC
+ * IPython -- a nifty way to interact with Python.
+ * NumPy/SciPy -- scientific extensions to Python.
+ * pyMPI -- Python interface to the MPI.
+ * Rpy -- accessing the R package & libraries from Python
+ * matplotlib -- an incredibly nice package for plotting
+ * Using IDLE to write Python code
+ * Trac project management: intro & configuration.  Using Trac effectively.
+ * Using the subprocess module
+
+This day will briefly explore the variety of tools for effectively
+working with and reaching out from Python.  The general format will
+be to briefly introduce each tool, demonstrate the interface, and
+provide a good starting point for further exploration.  (This is a lot
+of tools, but I can provide some good hardcopy demos and walk
+them through the initial examples.)
+
+Day 3
+-----
+
+Goal: Provide hands-on experience with automatically producing static
+      and interactive views of your data and analysis results.
+
+Databases, data analysis, and data presentation
+
+ * A brief intro to Tkinter, a built-in graphical interface system.
+
+ * Building static HTML output from your analyses -- an effective way
+      to present and explore your own data.
+ * Building dynamic HTML output with CGI, and why it's not a good idea.
+ * Using CherryPy to build a lightweight yet dynamic Web site (better idea!)
+
+ * Storing data in a structured manner
+   - shelve/bsddb
+   - Durus, a simple object database
+   - SQLite/MySQL/PostgreSQL (simple examples only)
+
+ * Digressions on client/server programming and event-driven programming,
+      and how to do them without driving yourself insane.
+
+ * Tying a database into your Web server and data analysis pipeline.
+
+ * Building remote interfaces to your data (?? is this of interest? I find
+	    it incredibly useful myself, but it can be very complex)
+
+ * All you will ever need to know about XML programming (as opposed to
+      *design*) - SAX vs DOM.  (30 minutes at the end.)
+
+This day will introduce people to effective techniques for data storage
+and presentation with Python.
+
+Comments/Questions:
+
+ * I find XML to be not so useful, as it's mainly a way to encode data
+   in an unambiguous yet difficult to transmit manner.  Is there a
+   particular reason to cover it in depth?  (Most of the complexity is
+   in designing XML minilanguages, not in outputting or parsing it, which
+   can be covered fairly quickly.)
+
+ * Not sure where to fit the stdlib in.  Right now it's in day 1, where
+   it belongs -- but there's a lot of other stuff in there.
+
+ * I can expand or contract day 2, but I think the current list of topics
+   is pretty important and could take all day as-is.
+
+ * Day 3 will be fun ;)

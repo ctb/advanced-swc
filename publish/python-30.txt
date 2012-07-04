@@ -1,0 +1,37 @@
+Python 3.0
+==========
+
+What's coming in Python 3000 (a.k.a. Python 3.0)?
+
+First of all, Python 3000 will be out sometime in 2008; large parts of
+it have already been implemented.  It is simply an increment on the
+current code base.
+
+The biggest point is that Python 3000 will break backwards
+compatibility, abruptly.  This is very unusual for Python, but is
+necessary to get rid of some old cruft.  In general, Python has been
+very good about updating slowly and incrementally without breaking
+backwards compatibility very much; this approach is being abandoned
+for the jump from 2.x to 3.x.
+
+However, the actual impact of this is likely to be small.  There will
+be a few expressions that no longer work -- for example, 'dict.has_key'
+is being removed, because you can just do 'if key in dict' -- but a
+lot of the changes are behind the scenes, e.g. functions that currently
+return lists will return iterators (dict.iterkeys -> dict.keys).
+
+The biggest impact on this audience (scientists & numerical people) is
+probably that (in Python 3.0) 6 / 5 will no longer be 0, and <> is
+being removed.
+
+Where lots of existing code must be made Python 3k compatible, you will
+be able to use an automated conversion tool.  This should "just work"
+except for cases where there is ambiguity in intent.
+
+The most depressing aspect of Py3k (for me) is that the stdlib is not
+being reorganized, but this does mean that most existing modules will
+still be in the same place!
+
+See `David Mertz's blog
+<http://www-03.ibm.com/developerworks/blogs/page/davidmertz?entry=second_day_python_3000>`__
+for his summary of the changes.

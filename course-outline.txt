@@ -1,0 +1,131 @@
+========================================================
+Intermediate and Advanced Software Carpentry with Python
+========================================================
+
+Teaching philosophy
+===================
+
+Light coverage of background & structure of topics, with lots of demos
+and hands-on experience.  The overall goal is to prepare students to
+forge ahead on their own, yet give them enough material to point them
+in the right direction.
+
+Outline
+=======
+
+Three days: plan for 3-4 hours lectures, 2-3 hours hands-on
+interspersed, plus breaks.  I will be available to consult
+with individuals and groups about specific issues (incl.
+source code) over lunch & dinner.
+
+Day 1
+-----
+
+Goal: Ensure that participants understand how to build re-usable Python
+      code & design for re-use and maintenance.
+
+Morning: assessment of level & "fun stuff"
+
+ * brief motivating discussion (program creatively & know your tools)
+
+ * intermediate & advanced features of the Python language: tuples,
+   lists, and dictionaries; functions, exceptions, & inheritance;
+   private methods and variables; generators and iterators; list
+   comprehension; defining new "-like" types (list-like,
+   dict-like).
+
+ * building Python programs and laying out packages: module globals,
+   classes vs modules; single vs multiple files; libraries vs
+   executables; some simple naming schemes.
+
+Afternoon: 
+
+ * writing for reusability: classes, modules, packages.  Decomposing
+       functionality, and what structures are appropriate.
+
+   (Reusability of code is a productivity multiplier, and reduces
+    bug incidence significantly.)
+
+ * maintaining Python codebases and testing: unittest/nose, doctest, the
+   point of testing.  Using code coverage analyses to target tests.
+   Building domain specific languages for testing/extensibility
+   purposes.  The "developer lifecycle", refactoring, and regression
+   tests (*when did my program change!?*).  pdb/tracebacks for
+   debugging.
+
+   (Testing increases programmer productivity exponentially.)
+
+ * profiling and performance enhancing modules (psyco, pyrex).
+
+ * a brief intro to extending Python with C/C++; creating/maintaining
+   mixed codebases.
+
+ * useful modules in the stdlib.
+
+This day will be devoted to exploring people's knowledge about Python,
+and can be adjusted dynamically to provide more basic or more advanced
+information.
+
+Day 2
+-----
+
+Goal: Introduce participants to the variety of (excellent!) tools for
+      working with Python, esp in science.
+
+Tools:
+
+ * useful modules in the stdlib (continued).
+
+ * Wrapping C/C++ code automatically: SWIG, SIP, Boost examples.
+
+ * Threading in Python and the Global Interpreter Lock.  Practical
+   examples of why this matters.
+
+ * UNIX tools to help you develop and collaborate: screen, VNC
+ * IPython -- a nifty way to interact with Python.
+ * NumPy/SciPy -- scientific extensions to Python.
+ * pyMPI -- Python interface to the MPI.
+ * Rpy -- accessing the R package & libraries from Python
+ * matplotlib -- an incredibly nice package for plotting
+ * Using IDLE to write Python code
+ * Trac project management: intro & configuration.  Using Trac effectively.
+ * Using the subprocess module
+
+This day will briefly explore the variety of tools for effectively
+working with and reaching out from Python.  The general format will
+be to briefly introduce each tool, demonstrate the interface, and
+provide a good starting point for further exploration.
+
+Day 3
+-----
+
+Goal: Provide hands-on experience with automatically producing static
+      and interactive views of your data and analysis results.
+
+Data presentation and databases.
+
+ * A brief intro to Tkinter, a built-in graphical interface system.
+
+ * Building static HTML output from your analyses -- an effective way
+      to present and explore your own data.
+ * Building dynamic HTML output with CGI, and why it's not a good idea.
+ * Using CherryPy to build a lightweight yet dynamic Web site (a better idea!)
+   - **note** discuss security issues
+
+ * Storing data in a structured manner
+   - shelve/bsddb
+   - Durus, a simple object database
+   - SQLite/MySQL/PostgreSQL (simple examples only)
+
+ * Client/server programming and event-driven programming.
+
+ * Tying a database into your Web server and data analysis pipeline.
+
+ * Building remote interfaces to your data with XML-RPC (brief).
+
+ * XML parsing and the Document Object Model (DOM).
+
+ * What's coming in 3.0.
+
+This day will introduce people to effective techniques for data storage
+and presentation with Python.

@@ -1,0 +1,62 @@
+Tools to Help You Work
+======================
+
+IPython
+-------
+
+`IPython <http://ipython.scipy.org/moin/About>`__ is an interactive
+interpreter that aims to be a very convenient shell for working with
+Python.
+
+Features of note:
+
+ - Tab completion
+ - ? and ?? help
+ - history
+ - CTRL-P search (in addition to standard CTRL-R/emacs)
+ - use an editor to write stuff, and export stuff into an edtor
+ - colored exception tracebacks
+ - automatic function/parameter call stuff
+ - auto-quoting with ','
+ - 'run' (similar to execfile) but with -n, -i
+
+See `Quick tips <http://ipython.scipy.org/doc/manual/node4.html>`__ for
+even more of a laundry list!
+
+screen and VNC
+--------------
+
+screen is a non-graphical tool for running multiple text windows in a single
+login session.
+
+Features:
+
+ - multiple windows w/hotkey switching
+ - copy/paste between windows
+ - detach/resume
+
+VNC is a (free) graphical tool for persistent X Windows sessions (and
+Windows control, too).
+
+To start: ::
+
+  % vncserver
+
+WARNING: Running VNC on an open network is a big security risk!!
+
+Trac
+----
+
+Trac is a really nice-looking and friendly project management Web site.
+It integrates a Wiki with a version control repository browser, a
+ticket management system, and some simple roadmap controls.
+
+In particular, you can:
+
+ - browse the source code repository
+ - create tickets
+ - link checkin comments to specific tickets, revisions, etc.
+ - customize components, permissions, roadmaps, etc.
+ - view project status
+
+It integrates well with subversion, which is "a better CVS".
