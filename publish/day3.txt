@@ -1,0 +1,14 @@
+Day 3
+-----
+
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+   c++-wrapping
+   multiprocessing
+   useful-packages
+   new-style-classes
+   gui-gossip
+   python-30

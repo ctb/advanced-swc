@@ -1,0 +1,11 @@
+Day 1
+-----
+
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+   idiomatic-python
+   structuring-python
+   testing-python

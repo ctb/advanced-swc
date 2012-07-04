@@ -1,0 +1,12 @@
+Day 2
+-----
+
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+   idiomatic-python-2
+   increasing-perforamnce
+   tools
+   online-resources
